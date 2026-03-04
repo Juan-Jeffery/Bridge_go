@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>橋牌四人對戰 - 主觀視角版</title>
+    <title>橋牌四人對戰 - 連線完整版</title>
     <style>
         :root {
             --felt-green: #246324;
@@ -30,7 +30,6 @@
         .player-slot { display: flex; flex-direction: column; justify-content: center; align-items: center; }
         .player-info { background: rgba(0,0,0,0.6); padding: 5px 10px; border-radius: 5px; font-size: 0.8rem; border: 1px solid var(--info-gold); margin-bottom: 5px; }
 
-        /* 定義畫面上的四個坑位 */
         .pos-top { grid-column: 2; grid-row: 1; }
         .pos-bottom { grid-column: 2; grid-row: 3; align-self: end; }
         .pos-left  { grid-column: 1; grid-row: 2; }
@@ -42,6 +41,7 @@
             margin: 10px; border-radius: 15px;
             display: flex; justify-content: center; align-items: center;
             position: relative;
+            gap: 10px;
         }
 
         .hand-area { display: flex; justify-content: center; width: 100%; height: 110px; padding-bottom: 10px; }
@@ -150,14 +150,13 @@
                 document.getElementById('my-role-display').innerText = myRole;
                 document.getElementById('room-id-display').innerText = roomId;
                 
-                // 房主(南家)斷線則清空全房，其他人只移除自己
                 if (myRole === "south") {
                     roomRef.onDisconnect().remove();
                 } else {
                     roomRef.child('players/' + myRole).onDisconnect().remove();
                 }
 
-                setupUIVisual(); // 調整視覺方位
+                setupUIVisual();
                 startListening();
                 if (myRole === "south") setupNewDeck();
             } else {
@@ -165,25 +164,39 @@
             }
         });
 
-        // --- 2. 主觀視角校正 ---
         function setupUIVisual() {
             const roles = ['south', 'west', 'north', 'east'];
             const myIdx = roles.indexOf(myRole);
-
-            // 抓取 HTML 標籤
-            const lBottom = document.getElementById('label-bottom');
-            const lLeft   = document.getElementById('label-left');
-            const lTop    = document.getElementById('label-top');
-            const lRight  = document.getElementById('label-right');
-
-            // 根據相對索引分配文字
-            lBottom.innerText = `${myRole.toUpperCase()} (你)`;
-            lLeft.innerText   = roles[(myIdx + 1) % 4].toUpperCase();
-            lTop.innerText    = roles[(myIdx + 2) % 4].toUpperCase();
-            lRight.innerText  = roles[(myIdx + 3) % 4].toUpperCase();
+            document.getElementById('label-bottom').innerText = `${myRole.toUpperCase()} (你)`;
+            document.getElementById('label-left').innerText   = roles[(myIdx + 1) % 4].toUpperCase();
+            document.getElementById('label-top').innerText    = roles[(myIdx + 2) % 4].toUpperCase();
+            document.getElementById('label-right').innerText  = roles[(myIdx + 3) % 4].toUpperCase();
         }
 
-        // --- 3. 遊戲邏輯與監聽 ---
+        // --- 2. 遊戲邏輯：吃墩判斷 ---
+        function checkTrickWinner(tableCards) {
+            const cardsArray = Object.values(tableCards);
+            if (cardsArray.length < 4) return;
+
+            const leadSuit = cardsArray[0].s;
+            const values = {'A':14, 'K':13, 'Q':12, 'J':11, '10':10, '9':9, '8':8, '7':7, '6':6, '5':5, '4':4, '3':3, '2':2};
+
+            let winnerData = cardsArray[0];
+            cardsArray.forEach(card => {
+                if (card.s === leadSuit && values[card.v] > values[winnerData.v]) {
+                    winnerData = card;
+                }
+            });
+
+            // 1.5秒後清桌並交由贏家出牌
+            setTimeout(() => {
+                if (myRole === "south") {
+                    roomRef.child('table').remove();
+                    roomRef.child('turn').set(winnerData.from);
+                }
+            }, 1500);
+        }
+
         function setupNewDeck() {
             const suits = ['♠', '♥', '♦', '♣'];
             const values = ['A', 'K', 'Q', 'J', '10', '9', '8', '7', '6', '5', '4', '3', '2'];
@@ -200,27 +213,23 @@
         }
 
         function startListening() {
-            // 監聽房主是否解散房間
             roomRef.on('value', (snap) => {
                 if (myRole !== "" && !snap.exists()) {
-                    alert("遊戲已由房主結束。");
+                    alert("遊戲已結束。");
                     window.location.reload();
                 }
             });
 
-            // 聽自己的手牌
             roomRef.child('hands/' + myRole).on('value', (snap) => {
                 const hand = snap.val();
                 if (hand) renderHand(hand);
             });
 
-            // 聽輪到誰
             roomRef.child('turn').on('value', (snap) => {
                 const t = snap.val();
-                document.getElementById('turn-display').innerText = (t === myRole) ? "⭐ 你的回合" : t.toUpperCase();
+                if (t) document.getElementById('turn-display').innerText = (t === myRole) ? "⭐ 你的回合" : t.toUpperCase();
             });
 
-            // 聽桌面出牌
             roomRef.child('table').on('value', (snap) => {
                 const tableCards = snap.val();
                 const center = document.getElementById('table-center');
@@ -233,6 +242,7 @@
                         cardDiv.innerHTML = `${data.v}<span>${data.s}</span>`;
                         center.appendChild(cardDiv);
                     });
+                    checkTrickWinner(tableCards);
                 }
             });
         }
@@ -252,7 +262,7 @@
         function tryPlayCard(card, index, hand) {
             roomRef.child('turn').get().then(snap => {
                 if (snap.val() !== myRole) {
-                    alert("還沒輪到你出牌！");
+                    alert("還沒輪到你！");
                     return;
                 }
                 hand.splice(index, 1);
