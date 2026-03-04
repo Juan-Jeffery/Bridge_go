@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>橋牌四人對戰 - 主觀視角版</title>
+    <style>
+        :root {
+            --felt-green: #246324;
+            --info-gold: #f1c40f;
+            --card-white: #ffffff;
+        }
+
+        body, html {
+            margin: 0; padding: 0;
+            width: 100%; height: 100%;
+            background-color: #1a3c14;
+            color: white; font-family: sans-serif;
+            overflow: hidden;
+        }
+
+        .table-container {
+            display: grid;
+            grid-template-columns: 120px 1fr 120px;
+            grid-template-rows: 80px 1fr 150px;
+            width: 100vw; height: 100vh;
+            background: radial-gradient(circle, var(--felt-green) 0%, #153610 100%);
+        }
+
+        .player-slot { display: flex; flex-direction: column; justify-content: center; align-items: center; }
+        .player-info { background: rgba(0,0,0,0.6); padding: 5px 10px; border-radius: 5px; font-size: 0.8rem; border: 1px solid var(--info-gold); margin-bottom: 5px; }
+
+        /* 定義畫面上的四個坑位 */
+        .pos-top { grid-column: 2; grid-row: 1; }
+        .pos-bottom { grid-column: 2; grid-row: 3; align-self: end; }
+        .pos-left  { grid-column: 1; grid-row: 2; }
+        .pos-right  { grid-column: 3; grid-row: 2; }
+
+        .center-field {
+            grid-column: 2; grid-row: 2;
+            border: 2px dashed rgba(255,255,255,0.1);
+            margin: 10px; border-radius: 15px;
+            display: flex; justify-content: center; align-items: center;
+            position: relative;
+        }
+
+        .hand-area { display: flex; justify-content: center; width: 100%; height: 110px; padding-bottom: 10px; }
+        .card {
+            width: 55px; height: 85px;
+            background: var(--card-white);
+            border-radius: 4px;
+            margin-left: -25px;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.3);
+            color: black;
+            display: flex; flex-direction: column;
+            padding: 5px; font-weight: bold;
+            transition: transform 0.2s; cursor: pointer;
+            user-select: none;
+        }
+        .card:first-child { margin-left: 0; }
+        .card:hover { transform: translateY(-20px); z-index: 10; }
+        .card.red { color: #e74c3c; }
+
+        .status-bar {
+            position: absolute; top: 10px; left: 10px;
+            background: rgba(0,0,0,0.7); padding: 10px;
+            border-radius: 5px; font-size: 0.8rem; z-index: 100;
+        }
+        .waiting-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9); display: flex; flex-direction: column;
+            justify-content: center; align-items: center; z-index: 1000;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="loading" class="waiting-overlay">
+        <h2 id="loading-title">正在連線至牌局...</h2>
+        <p id="wait-msg">請確保房主已開桌</p>
+    </div>
+
+    <div class="status-bar">
+        房間: <span id="room-id-display">載入中</span><br>
+        角色: <span id="my-role-display">分配中</span><br>
+        輪到: <span id="turn-display">等待中</span>
+    </div>
+
+    <div class="table-container">
+        <div class="player-slot pos-top">
+            <div class="player-info" id="label-top">對家</div>
+            <div style="font-size: 1.5rem;">🎴</div>
+        </div>
+
+        <div class="player-slot pos-left">
+            <div class="player-info" id="label-left">左家</div>
+            <div style="writing-mode: vertical-lr; font-size: 1.5rem;">🎴</div>
+        </div>
+        
+        <div class="center-field" id="table-center"></div>
+
+        <div class="player-slot pos-right">
+            <div class="player-info" id="label-right">右家</div>
+            <div style="writing-mode: vertical-lr; font-size: 1.5rem;">🎴</div>
+        </div>
+        
+        <div class="player-slot pos-bottom">
+            <div class="player-info" id="label-bottom">載入中 (你)</div>
+            <div class="hand-area" id="my-hand"></div>
+        </div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyDAkwCXf6_Fd4jp79tk6YUC9yHynYXjLDQ",
+            authDomain: "bridge-go.firebaseapp.com",
+            projectId: "bridge-go",
+            databaseURL: "https://bridge-go-default-rtdb.firebaseio.com",
+            storageBucket: "bridge-go.firebasestorage.app",
+            messagingSenderId: "212052576521",
+            appId: "1:212052576521:web:dd45f303d59f5315ddabd8"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+
+        let myRole = ""; 
+        const roomId = "Bridge_Room_001";
+        const roomRef = database.ref('rooms/' + roomId);
+
+        // --- 1. 入座與炸房邏輯 ---
+        roomRef.transaction((currentData) => {
+            if (currentData === null) {
+                myRole = "south";
+                return { players: { south: true }, turn: "south", table: {} };
+            }
+            if (!currentData.players) currentData.players = {};
+            const p = currentData.players;
+            if (!p.south) { myRole = "south"; p.south = true; }
+            else if (!p.west) { myRole = "west"; p.west = true; }
+            else if (!p.north) { myRole = "north"; p.north = true; }
+            else if (!p.east) { myRole = "east"; p.east = true; }
+            else { return; } 
+            return currentData;
+        }, (err, committed) => {
+            if (committed) {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('my-role-display').innerText = myRole;
+                document.getElementById('room-id-display').innerText = roomId;
+                
+                // 房主(南家)斷線則清空全房，其他人只移除自己
+                if (myRole === "south") {
+                    roomRef.onDisconnect().remove();
+                } else {
+                    roomRef.child('players/' + myRole).onDisconnect().remove();
+                }
+
+                setupUIVisual(); // 調整視覺方位
+                startListening();
+                if (myRole === "south") setupNewDeck();
+            } else {
+                alert("房間已滿，請稍後再試。");
+            }
+        });
+
+        // --- 2. 主觀視角校正 ---
+        function setupUIVisual() {
+            const roles = ['south', 'west', 'north', 'east'];
+            const myIdx = roles.indexOf(myRole);
+
+            // 抓取 HTML 標籤
+            const lBottom = document.getElementById('label-bottom');
+            const lLeft   = document.getElementById('label-left');
+            const lTop    = document.getElementById('label-top');
+            const lRight  = document.getElementById('label-right');
+
+            // 根據相對索引分配文字
+            lBottom.innerText = `${myRole.toUpperCase()} (你)`;
+            lLeft.innerText   = roles[(myIdx + 1) % 4].toUpperCase();
+            lTop.innerText    = roles[(myIdx + 2) % 4].toUpperCase();
+            lRight.innerText  = roles[(myIdx + 3) % 4].toUpperCase();
+        }
+
+        // --- 3. 遊戲邏輯與監聽 ---
+        function setupNewDeck() {
+            const suits = ['♠', '♥', '♦', '♣'];
+            const values = ['A', 'K', 'Q', 'J', '10', '9', '8', '7', '6', '5', '4', '3', '2'];
+            let deck = [];
+            suits.forEach(s => values.forEach(v => deck.push({s, v})));
+            deck.sort(() => Math.random() - 0.5);
+
+            roomRef.child('hands').set({
+                south: deck.slice(0, 13),
+                west: deck.slice(13, 26),
+                north: deck.slice(26, 39),
+                east: deck.slice(39, 52)
+            });
+        }
+
+        function startListening() {
+            // 監聽房主是否解散房間
+            roomRef.on('value', (snap) => {
+                if (myRole !== "" && !snap.exists()) {
+                    alert("遊戲已由房主結束。");
+                    window.location.reload();
+                }
+            });
+
+            // 聽自己的手牌
+            roomRef.child('hands/' + myRole).on('value', (snap) => {
+                const hand = snap.val();
+                if (hand) renderHand(hand);
+            });
+
+            // 聽輪到誰
+            roomRef.child('turn').on('value', (snap) => {
+                const t = snap.val();
+                document.getElementById('turn-display').innerText = (t === myRole) ? "⭐ 你的回合" : t.toUpperCase();
+            });
+
+            // 聽桌面出牌
+            roomRef.child('table').on('value', (snap) => {
+                const tableCards = snap.val();
+                const center = document.getElementById('table-center');
+                center.innerHTML = "";
+                if (tableCards) {
+                    Object.values(tableCards).forEach(data => {
+                        const cardDiv = document.createElement('div');
+                        cardDiv.className = `card ${(data.s === '♥' || data.s === '♦') ? 'red' : ''}`;
+                        cardDiv.style.margin = "5px";
+                        cardDiv.innerHTML = `${data.v}<span>${data.s}</span>`;
+                        center.appendChild(cardDiv);
+                    });
+                }
+            });
+        }
+
+        function renderHand(hand) {
+            const container = document.getElementById('my-hand');
+            container.innerHTML = "";
+            hand.forEach((card, index) => {
+                const div = document.createElement('div');
+                div.className = `card ${(card.s === '♥' || card.s === '♦') ? 'red' : ''}`;
+                div.innerHTML = `${card.v}<span>${card.s}</span>`;
+                div.onclick = () => tryPlayCard(card, index, hand);
+                container.appendChild(div);
+            });
+        }
+
+        function tryPlayCard(card, index, hand) {
+            roomRef.child('turn').get().then(snap => {
+                if (snap.val() !== myRole) {
+                    alert("還沒輪到你出牌！");
+                    return;
+                }
+                hand.splice(index, 1);
+                roomRef.child('hands/' + myRole).set(hand);
+                roomRef.child('table').push({ ...card, from: myRole });
+                const flow = { south: "west", west: "north", north: "east", east: "south" };
+                roomRef.child('turn').set(flow[myRole]);
+            });
+        }
+    </script>
+</body>
+</html>
