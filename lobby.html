@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>橋牌大廳 - 準備中</title>
+    <style>
+        :root {
+            --bg-dark: #1a3c14;
+            --gold: #f1c40f;
+            --white: #ecf0f1;
+        }
+        body { 
+            background: var(--bg-dark); 
+            color: var(--white); 
+            font-family: sans-serif; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            height: 100vh; 
+            margin: 0; 
+        }
+        .lobby-card { 
+            background: rgba(0,0,0,0.85); 
+            padding: 30px; 
+            border-radius: 15px; 
+            border: 2px solid var(--gold); 
+            width: 320px; 
+            text-align: center; 
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        }
+        h2 { color: var(--gold); margin-top: 0; letter-spacing: 2px; }
+        
+        .input-group { margin-bottom: 25px; }
+        input { 
+            padding: 10px; 
+            border-radius: 5px; 
+            border: 1px solid var(--gold); 
+            width: 100%; 
+            box-sizing: border-box;
+            background: #333;
+            color: white;
+            text-align: center;
+            font-size: 1rem;
+        }
+
+        .player-list { margin: 20px 0; border-top: 1px solid #444; }
+        .player-item { 
+            padding: 12px 5px; 
+            border-bottom: 1px solid #444; 
+            display: flex; 
+            justify-content: space-between;
+            font-size: 0.9rem;
+        }
+        .status-tag { font-size: 0.75rem; padding: 2px 8px; border-radius: 10px; }
+        .ready { background: #27ae60; color: white; }
+        .waiting { background: #7f8c8d; color: white; }
+
+        .btn-confirm { 
+            background: var(--gold); 
+            color: #1a3c14; 
+            padding: 12px 0; 
+            border: none; 
+            border-radius: 25px; 
+            cursor: pointer; 
+            font-weight: bold; 
+            width: 100%;
+            font-size: 1rem;
+            transition: 0.3s;
+        }
+        .btn-confirm:active { transform: scale(0.95); }
+        .msg { font-size: 0.8rem; margin-top: 15px; color: #aaa; }
+    </style>
+</head>
+<body>
+
+    <div class="lobby-card">
+        <h2>遊戲準備室</h2>
+        
+        <div class="input-group">
+            <input type="text" id="name-input" placeholder="請輸入暱稱">
+        </div>
+
+        <button id="ready-btn" class="btn-confirm" onclick="toggleReady()">確認準備</button>
+
+        <div class="player-list" id="player-list">
+            </div>
+
+        <p class="msg" id="status-text">等待玩家加入...</p>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyDAkwCXf6_Fd4jp79tk6YUC9yHynYXjLDQ",
+            authDomain: "bridge-go.firebaseapp.com",
+            projectId: "bridge-go",
+            databaseURL: "https://bridge-go-default-rtdb.firebaseio.com",
+            appId: "1:212052576521:web:dd45f303d59f5315ddabd8"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+        const roomId = "Bridge_Room_001";
+        const roomRef = database.ref('rooms/' + roomId);
+
+        let myRole = "";
+        let isReady = false;
+        
+        // 初始讀取本地名字
+        const nameInput = document.getElementById('name-input');
+        nameInput.value = localStorage.getItem('bridge_name') || "";
+
+        // --- 1. 入座邏輯 ---
+        roomRef.child('players').transaction((p) => {
+            if (!p) p = {};
+            const roles = ['south', 'west', 'north', 'east'];
+            for (let r of roles) {
+                if (!p[r]) {
+                    myRole = r;
+                    p[r] = { name: nameInput.value || "未命名", ready: false };
+                    return p;
+                }
+            }
+            return; // 滿了
+        }, (err, committed) => {
+            if (committed) {
+                // 斷線清理
+                roomRef.child('players/' + myRole).onDisconnect().remove();
+                listenLobby();
+            } else {
+                alert("房間已滿！");
+                window.location.href = "index.html";
+            }
+        });
+
+        // --- 2. 準備按鈕邏輯 ---
+        function toggleReady() {
+            const name = nameInput.value.trim();
+            if (!name) { alert("請先輸入名字"); return; }
+            
+            isReady = !isReady;
+            localStorage.setItem('bridge_name', name);
+            
+            const btn = document.getElementById('ready-btn');
+            if (isReady) {
+                btn.innerText = "取消準備";
+                btn.style.background = "#e74c3c";
+                btn.style.color = "white";
+                nameInput.disabled = true;
+            } else {
+                btn.innerText = "確認準備";
+                btn.style.background = "#f1c40f";
+                btn.style.color = "#1a3c14";
+                nameInput.disabled = false;
+            }
+
+            // 更新到 Firebase
+            roomRef.child('players/' + myRole).update({
+                name: name,
+                ready: isReady
+            });
+        }
+
+        // --- 3. 監聽大廳狀態 ---
+        function listenLobby() {
+            roomRef.child('players').on('value', (snap) => {
+                const players = snap.val() || {};
+                const listEl = document.getElementById('player-list');
+                listEl.innerHTML = "";
+                
+                const roles = ['south', 'west', 'north', 'east'];
+                let readyCount = 0;
+                let playerCount = 0;
+
+                roles.forEach(r => {
+                    const p = players[r];
+                    const nameTxt = p ? p.name : "等待加入...";
+                    const statusTxt = p ? (p.ready ? "已準備" : "填寫中") : "-";
+                    const statusClass = (p && p.ready) ? "ready" : "waiting";
+
+                    listEl.innerHTML += `
+                        <div class="player-item">
+                            <span>${nameTxt}</span>
+                            <span class="status-tag ${statusClass}">${statusTxt}</span>
+                        </div>
+                    `;
+
+                    if (p) {
+                        playerCount++;
+                        if (p.ready) readyCount++;
+                    }
+                });
+
+                document.getElementById('status-text').innerText = `目前人數: ${playerCount}/4 (已準備: ${readyCount})`;
+
+                // 自動開始判斷：四個人都準備好了
+                if (readyCount === 4) {
+                    // 由南家標記遊戲開始
+                    if (myRole === "south") {
+                        roomRef.update({ gameStarted: true });
+                    }
+                }
+            });
+
+            // 監聽遊戲開始訊號
+            roomRef.child('gameStarted').on('value', (snap) => {
+                if (snap.val() === true) {
+                    // 轉場動畫或直接跳轉
+                    window.location.href = "four_people.html";
+                }
+            });
+        }
+    </script>
+</body>
+</html>
