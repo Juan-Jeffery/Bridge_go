@@ -70,6 +70,11 @@
         let myRole = ""; 
         let currentPlayersData = {};
 
+        // --- 核心修正：主動清理機制 ---
+        window.onbeforeunload = function() {
+            if (myRole) { playersRef.child(myRole).remove(); }
+        };
+
         function initializeGame() {
             if (!myLocalName) { window.location.href = "lobby.html"; return; }
             database.ref().on('value', (snap) => {
@@ -90,19 +95,21 @@
         }
 
         function startListening(rid) {
-            // --- 斷線偵測 (即時比對法) ---
+            // 先初始化快照
+            playersRef.get().then(snap => { currentPlayersData = snap.val() || {}; });
+
+            // 強化版斷線監控
             playersRef.on('value', snap => {
                 const players = snap.val() || {};
                 const currentRoles = Object.keys(players);
                 const requiredRoles = ['south', 'west', 'north', 'east'];
                 
-                // 檢查是否有角色失蹤
                 const missingRole = requiredRoles.find(role => !currentRoles.includes(role));
                 
-                if (missingRole && Object.keys(currentPlayersData).length === 4) {
+                // 只有在已經滿員過的情況下消失才算斷線
+                if (missingRole && Object.keys(currentPlayersData).length >= 4) {
                     const missingName = (currentPlayersData[missingRole] ? currentPlayersData[missingRole].name : "某位玩家");
-                    alert(`${missingName} (${missingRole.toUpperCase()}) 已斷線，牌局結束。`);
-                    
+                    alert(`偵測到 ${missingName} (${missingRole.toUpperCase()}) 已離線，牌局強制結束。`);
                     if (myRole === "south") { gameRef.remove(); }
                     window.location.href = "lobby.html";
                 }
