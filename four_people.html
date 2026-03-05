@@ -3,102 +3,44 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>橋牌四人對戰 - 專業動畫版</title>
+    <title>橋牌四人對戰 - 專業計分版</title>
     <style>
         :root {
             --felt-green: #246324;
             --info-gold: #f1c40f;
             --card-white: #ffffff;
         }
-
-        body, html {
-            margin: 0; padding: 0;
-            width: 100%; height: 100%;
-            background-color: #1a3c14;
-            color: white; font-family: sans-serif;
-            overflow: hidden;
-        }
-
-        .table-container {
-            display: grid;
-            grid-template-columns: 120px 1fr 120px;
-            grid-template-rows: 80px 1fr 150px;
-            width: 100vw; height: 100vh;
-            background: radial-gradient(circle, var(--felt-green) 0%, #153610 100%);
-        }
-
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background-color: #1a3c14; color: white; font-family: sans-serif; overflow: hidden; }
+        .table-container { display: grid; grid-template-columns: 120px 1fr 120px; grid-template-rows: 100px 1fr 150px; width: 100vw; height: 100vh; background: radial-gradient(circle, var(--felt-green) 0%, #153610 100%); }
         .player-slot { display: flex; flex-direction: column; justify-content: center; align-items: center; }
         .player-info { background: rgba(0,0,0,0.6); padding: 5px 10px; border-radius: 5px; font-size: 0.8rem; border: 1px solid var(--info-gold); margin-bottom: 5px; text-align: center; }
-
         .pos-top { grid-column: 2; grid-row: 1; }
         .pos-bottom { grid-column: 2; grid-row: 3; align-self: end; }
         .pos-left  { grid-column: 1; grid-row: 2; }
         .pos-right  { grid-column: 3; grid-row: 2; }
-
-        .center-field {
-            grid-column: 2; grid-row: 2;
-            border: 2px dashed rgba(255,255,255,0.1);
-            margin: 10px; border-radius: 15px;
-            display: flex; justify-content: center; align-items: center;
-            position: relative; gap: 10px;
-        }
-
+        .center-field { grid-column: 2; grid-row: 2; border: 2px dashed rgba(255,255,255,0.1); margin: 10px; border-radius: 15px; display: flex; justify-content: center; align-items: center; position: relative; gap: 10px; }
         .hand-area { display: flex; justify-content: center; width: 100%; height: 110px; padding-bottom: 10px; }
-        .card {
-            width: 55px; height: 85px;
-            background: var(--card-white);
-            border-radius: 4px;
-            margin-left: -25px;
-            box-shadow: 2px 2px 5px rgba(0,0,0,0.3);
-            color: black;
-            display: flex; flex-direction: column;
-            padding: 5px; font-weight: bold;
-            cursor: pointer;
-            user-select: none;
-            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), margin 0.5s ease;
-            position: relative;
-        }
+        .card { width: 55px; height: 85px; background: var(--card-white); border-radius: 4px; margin-left: -25px; box-shadow: 2px 2px 5px rgba(0,0,0,0.3); color: black; display: flex; flex-direction: column; padding: 5px; font-weight: bold; cursor: pointer; user-select: none; transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), margin 0.5s ease; position: relative; }
         .card:first-child { margin-left: 0; }
         .card:hover { transform: translateY(-25px) scale(1.1); z-index: 100 !important; }
         .card.red { color: #e74c3c; }
-
         .table-card { position: relative; cursor: help; }
-        .table-card::after {
-            content: attr(data-player);
-            position: absolute; top: -30px; left: 50%;
-            transform: translateX(-50%);
-            background: rgba(0,0,0,0.85); color: var(--info-gold);
-            padding: 3px 10px; border-radius: 5px; font-size: 0.75rem;
-            white-space: nowrap; opacity: 0; transition: opacity 0.2s;
-            pointer-events: none; border: 1px solid var(--info-gold);
-        }
-        .table-card:hover::after, .table-card:active::after { opacity: 1; }
-
-        .status-bar {
-            position: absolute; top: 10px; left: 10px;
-            background: rgba(0,0,0,0.7); padding: 10px;
-            border-radius: 5px; font-size: 0.8rem; z-index: 100;
-        }
-        .waiting-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.9); display: flex; flex-direction: column;
-            justify-content: center; align-items: center; z-index: 1000;
-        }
+        .table-card::after { content: attr(data-player); position: absolute; top: -30px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.85); color: var(--info-gold); padding: 3px 10px; border-radius: 5px; font-size: 0.75rem; white-space: nowrap; opacity: 0; transition: opacity 0.2s; pointer-events: none; border: 1px solid var(--info-gold); }
+        .table-card:hover::after { opacity: 1; }
+        .status-bar { position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.7); padding: 10px; border-radius: 5px; font-size: 0.8rem; z-index: 100; line-height: 1.5; }
+        .score-tag { color: var(--info-gold); font-weight: bold; }
+        .waiting-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1000; }
     </style>
 </head>
 <body>
-
     <div id="loading" class="waiting-overlay">
         <h2>正在同步牌局資料...</h2>
-        <p id="retry-msg" style="font-size: 0.8rem; color: #aaa;">正在確認座位資訊</p>
+        <p id="retry-msg" style="font-size: 0.8rem; color: #aaa;">正在啟動遊戲引擎</p>
     </div>
-
     <div class="status-bar">
-        房間: <span id="room-id-display">載入中</span><br>
-        角色: <span id="my-role-display">-</span><br>
-        輪到: <span id="turn-display">等待中</span>
+        角色: <span id="my-role-display">-</span> | 輪到: <span id="turn-display">...</span><br>
+        南北家: <span class="score-tag" id="score-ns">0</span> 墩 | 東西家: <span class="score-tag" id="score-ew">0</span> 墩
     </div>
-
     <div class="table-container">
         <div class="player-slot pos-top"><div class="player-info" id="label-top">等待中...</div><div style="font-size: 1.5rem;">🎴</div></div>
         <div class="player-slot pos-left"><div class="player-info" id="label-left">等待中...</div><div style="writing-mode: vertical-lr; font-size: 1.5rem;">🎴</div></div>
@@ -109,7 +51,6 @@
 
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
-
     <script>
         const firebaseConfig = {
             apiKey: "AIzaSyDAkwCXf6_Fd4jp79tk6YUC9yHynYXjLDQ",
@@ -120,121 +61,68 @@
         };
         firebase.initializeApp(firebaseConfig);
         const database = firebase.database();
-        const roomId = "Bridge_Room_001";
-        const roomRef = database.ref('rooms/' + roomId);
-        const myLocalName = localStorage.getItem('bridge_name') || "匿名玩家";
+        const urlParams = new URLSearchParams(window.location.search);
+        const myLocalName = urlParams.get('pname'); 
+        const roomId = urlParams.get('rid') || "Room_Alpha";
+        const playersRef = database.ref('players/' + roomId);
+        const gameRef = database.ref('games/' + roomId);
 
         let myRole = ""; 
         let currentPlayersData = {};
-        let retryCount = 0;
 
-        // --- 1. 初始化與身份確認 (核心修正) ---
         function initializeGame() {
-            roomRef.once('value').then(snap => {
-                const data = snap.val() || {};
-                const p = data.players || {};
-
-                // 防呆：如果雲端標記顯示遊戲尚未開始，強行回大廳重整狀態
-                if (data.gameStarted !== true) {
-                    window.location.href = "lobby.html";
-                    return;
-                }
-
-                // 在 players 物件下尋找符合名字的 Key
-                myRole = Object.keys(p).find(k => p[k] && p[k].name === myLocalName);
-                
+            if (!myLocalName) { window.location.href = "lobby.html"; return; }
+            database.ref().on('value', (snap) => {
+                const all = snap.val() || {};
+                const pList = (all.players && all.players[roomId]) ? all.players[roomId] : {};
+                const gStatus = (all.games && all.games[roomId]) ? all.games[roomId] : {};
+                if (gStatus.gameStarted !== true || Object.keys(pList).length === 0) return; 
+                myRole = Object.keys(pList).find(k => pList[k] && pList[k].name === myLocalName);
                 if (myRole) {
+                    database.ref().off('value'); 
                     document.getElementById('loading').style.display = 'none';
                     document.getElementById('my-role-display').innerText = myRole.toUpperCase();
-                    document.getElementById('room-id-display').innerText = roomId;
-                    
-                    if (myRole === "south") roomRef.onDisconnect().remove();
-                    else roomRef.child('players/' + myRole).onDisconnect().remove();
-
-                    startListening();
-                    if (myRole === "south") {
-                        roomRef.child('hands').get().then(h => { if (!h.exists()) setupNewDeck(); });
-                    }
-                } else {
-                    retryCount++;
-                    if (retryCount < 15) { // 稍微增加重試次數到 7.5 秒，確保慢速網路也能同步
-                        document.getElementById('retry-msg').innerText = `正在同步座位... (${retryCount})`;
-                        setTimeout(initializeGame, 500); 
-                    } else {
-                        alert("找不到座位資訊，請回大廳重新準備。");
-                        window.location.href = "lobby.html";
-                    }
+                    startListening(roomId);
+                    if (myRole === "south") { gameRef.child('hands').get().then(h => { if (!h.exists()) setupNewDeck(); }); }
                 }
             });
+            setTimeout(() => { if (!myRole) { window.location.href = "lobby.html"; } }, 10000);
         }
 
-        initializeGame();
-
-        // --- 2. 核心邏輯：整理動畫 ---
-        function sortHand(hand) {
-            const suitOrder = {'♠': 4, '♥': 3, '♦': 2, '♣': 1};
-            const valOrder = {'A':14, 'K':13, 'Q':12, 'J':11, '10':10, '9':9, '8':8, '7':7, '6':6, '5':5, '4':4, '3':3, '2':2};
-            return hand.sort((a, b) => {
-                if (suitOrder[a.s] !== suitOrder[b.s]) return suitOrder[b.s] - suitOrder[a.s];
-                return valOrder[b.v] - valOrder[a.v];
-            });
-        }
-
-        function renderHand(hand) {
-            const container = document.getElementById('my-hand');
-            container.innerHTML = "";
-            const sorted = sortHand(hand);
-            sorted.forEach((card, index) => {
-                const div = document.createElement('div');
-                div.className = `card ${(card.s === '♥' || card.s === '♦') ? 'red' : ''}`;
-                div.style.zIndex = index;
-                div.innerHTML = `${card.v}<span>${card.s}</span>`;
-                div.onclick = () => tryPlayCard(card, index, sorted);
-                container.appendChild(div);
-            });
-        }
-
-        // --- 3. 靜默出牌與提示 ---
-        function tryPlayCard(card, index, hand) {
-            roomRef.child('turn').get().then(snap => {
-                if (snap.val() !== myRole) return;
-                hand.splice(index, 1);
-                roomRef.child('hands/' + myRole).set(hand);
-                roomRef.child('table').push({ 
-                    ...card, 
-                    from: myRole, 
-                    playerName: (currentPlayersData[myRole] ? currentPlayersData[myRole].name : myRole) 
-                });
-                const flow = { south: "west", west: "north", north: "east", east: "south" };
-                roomRef.child('turn').set(flow[myRole]);
-            });
-        }
-
-        function startListening() {
-            // 監聽房間是否存在，房主炸房時回首頁
-            roomRef.on('value', snap => { if (!snap.exists()) window.location.href = "index.html"; });
-
-            roomRef.child('players').on('value', snap => {
-                currentPlayersData = snap.val() || {};
-                const roles = ['south', 'west', 'north', 'east'];
-                const myIdx = roles.indexOf(myRole);
-                const getP = (r) => (currentPlayersData[r] ? currentPlayersData[r].name : "等待中...");
-                document.getElementById('label-bottom').innerText = getP(myRole) + " (你)";
-                document.getElementById('label-left').innerText   = getP(roles[(myIdx+1)%4]);
-                document.getElementById('label-top').innerText    = getP(roles[(myIdx+2)%4]);
-                document.getElementById('label-right').innerText  = getP(roles[(myIdx+3)%4]);
+        function startListening(rid) {
+            // --- 斷線偵測 (即時比對法) ---
+            playersRef.on('value', snap => {
+                const players = snap.val() || {};
+                const currentRoles = Object.keys(players);
+                const requiredRoles = ['south', 'west', 'north', 'east'];
+                
+                // 檢查是否有角色失蹤
+                const missingRole = requiredRoles.find(role => !currentRoles.includes(role));
+                
+                if (missingRole && Object.keys(currentPlayersData).length === 4) {
+                    const missingName = (currentPlayersData[missingRole] ? currentPlayersData[missingRole].name : "某位玩家");
+                    alert(`${missingName} (${missingRole.toUpperCase()}) 已斷線，牌局結束。`);
+                    
+                    if (myRole === "south") { gameRef.remove(); }
+                    window.location.href = "lobby.html";
+                }
+                currentPlayersData = players;
             });
 
-            roomRef.child('hands/' + myRole).on('value', snap => { if (snap.val()) renderHand(snap.val()); });
+            gameRef.child('scores').on('value', snap => {
+                const s = snap.val() || { ns: 0, ew: 0 };
+                document.getElementById('score-ns').innerText = s.ns || 0;
+                document.getElementById('score-ew').innerText = s.ew || 0;
+            });
 
-            roomRef.child('turn').on('value', snap => {
+            gameRef.child('hands/' + myRole).on('value', snap => { if (snap.val()) renderHand(snap.val()); });
+            gameRef.child('turn').on('value', snap => {
                 const t = snap.val();
                 if (t) document.getElementById('turn-display').innerText = (t === myRole) ? "⭐ 你的回合" : t.toUpperCase();
             });
 
-            roomRef.child('table').on('value', snap => {
-                const center = document.getElementById('table-center');
-                center.innerHTML = "";
+            gameRef.child('table').on('value', snap => {
+                const center = document.getElementById('table-center'); center.innerHTML = "";
                 const tableCards = snap.val();
                 if (tableCards) {
                     Object.values(tableCards).forEach(data => {
@@ -256,16 +144,54 @@
             const vals = {'A':14, 'K':13, 'Q':12, 'J':11, '10':10, '9':9, '8':8, '7':7, '6':6, '5':5, '4':4, '3':3, '2':2};
             let winner = cardsArray[0];
             cardsArray.forEach(c => { if (c.s === leadSuit && vals[c.v] > vals[winner.v]) winner = c; });
-            setTimeout(() => { if (myRole === "south") { roomRef.child('table').remove(); roomRef.child('turn').set(winner.from); } }, 1500);
+            setTimeout(() => {
+                if (myRole === "south") {
+                    const team = (winner.from === 'south' || winner.from === 'north') ? 'ns' : 'ew';
+                    gameRef.child('scores/' + team).transaction(s => (s || 0) + 1);
+                    gameRef.child('table').remove(); gameRef.child('turn').set(winner.from);
+                }
+            }, 1500);
+        }
+
+        function tryPlayCard(card, index, hand) {
+            gameRef.child('turn').get().then(snap => {
+                if (snap.val() !== myRole) return;
+                hand.splice(index, 1);
+                gameRef.child('hands/' + myRole).set(hand);
+                gameRef.child('table').push({ ...card, from: myRole, playerName: (currentPlayersData[myRole] ? currentPlayersData[myRole].name : myRole) });
+                const flow = { south: "west", west: "north", north: "east", east: "south" };
+                gameRef.child('turn').set(flow[myRole]);
+            });
+        }
+
+        function sortHand(hand) {
+            const suitOrder = {'♠': 4, '♥': 3, '♦': 2, '♣': 1};
+            const valOrder = {'A':14, 'K':13, 'Q':12, 'J':11, '10':10, '9':9, '8':8, '7':7, '6':6, '5':5, '4':4, '3':3, '2':2};
+            return hand.sort((a, b) => { if (suitOrder[a.s] !== suitOrder[b.s]) return suitOrder[b.s] - suitOrder[a.s]; return valOrder[b.v] - valOrder[a.v]; });
+        }
+
+        function renderHand(hand) {
+            const container = document.getElementById('my-hand'); container.innerHTML = "";
+            const sorted = sortHand(hand);
+            sorted.forEach((card, index) => {
+                const div = document.createElement('div');
+                div.className = `card ${(card.s === '♥' || card.s === '♦') ? 'red' : ''}`;
+                div.style.zIndex = index; div.innerHTML = `${card.v}<span>${card.s}</span>`;
+                div.onclick = () => tryPlayCard(card, index, sorted);
+                container.appendChild(div);
+            });
         }
 
         function setupNewDeck() {
             const suits = ['♠', '♥', '♦', '♣'], values = ['A', 'K', 'Q', 'J', '10', '9', '8', '7', '6', '5', '4', '3', '2'];
             let deck = []; suits.forEach(s => values.forEach(v => deck.push({s, v})));
             deck.sort(() => Math.random() - 0.5);
-            roomRef.child('hands').set({ south: deck.slice(0, 13), west: deck.slice(13, 26), north: deck.slice(26, 39), east: deck.slice(39, 52) });
-            roomRef.child('turn').set("south");
+            gameRef.child('hands').set({ south: deck.slice(0, 13), west: deck.slice(13, 26), north: deck.slice(26, 39), east: deck.slice(39, 52) });
+            gameRef.child('turn').set("south");
+            gameRef.child('scores').set({ ns: 0, ew: 0 });
         }
+
+        initializeGame();
     </script>
 </body>
 </html>
