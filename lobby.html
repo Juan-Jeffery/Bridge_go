@@ -83,8 +83,7 @@
 
         <button id="ready-btn" class="btn-confirm" onclick="toggleReady()">確認準備</button>
 
-        <div class="player-list" id="player-list">
-            </div>
+        <div class="player-list" id="player-list"></div>
 
         <p class="msg" id="status-text">等待玩家加入...</p>
     </div>
@@ -108,13 +107,22 @@
         let myRole = "";
         let isReady = false;
         
-        // 初始讀取本地名字
         const nameInput = document.getElementById('name-input');
         nameInput.value = localStorage.getItem('bridge_name') || "";
 
-        // --- 1. 入座邏輯 ---
+        // --- 1. 入座邏輯 (加入重置機制) ---
         roomRef.child('players').transaction((p) => {
-            if (!p) p = {};
+            // 如果房間目前完全沒人，代表你是房主 (South)
+            if (!p) {
+                p = {};
+                // 房主負責重置上一局的狀態，防止自動跳轉錯誤
+                roomRef.update({ 
+                    gameStarted: false, 
+                    hands: null, 
+                    table: null 
+                });
+            }
+            
             const roles = ['south', 'west', 'north', 'east'];
             for (let r of roles) {
                 if (!p[r]) {
@@ -123,10 +131,9 @@
                     return p;
                 }
             }
-            return; // 滿了
+            return; 
         }, (err, committed) => {
             if (committed) {
-                // 斷線清理
                 roomRef.child('players/' + myRole).onDisconnect().remove();
                 listenLobby();
             } else {
@@ -156,17 +163,17 @@
                 nameInput.disabled = false;
             }
 
-            // 更新到 Firebase
             roomRef.child('players/' + myRole).update({
                 name: name,
                 ready: isReady
             });
         }
 
-        // --- 3. 監聽大廳狀態 ---
+        // --- 3. 監聽大廳狀態 (加入更嚴格的跳轉判斷) ---
         function listenLobby() {
-            roomRef.child('players').on('value', (snap) => {
-                const players = snap.val() || {};
+            roomRef.on('value', (snap) => {
+                const data = snap.val() || {};
+                const players = data.players || {};
                 const listEl = document.getElementById('player-list');
                 listEl.innerHTML = "";
                 
@@ -195,20 +202,16 @@
 
                 document.getElementById('status-text').innerText = `目前人數: ${playerCount}/4 (已準備: ${readyCount})`;
 
-                // 自動開始判斷：四個人都準備好了
+                // 核心修正：只有在 4 人都點了準備，且 gameStarted 被改為 true 時才跳轉
                 if (readyCount === 4) {
-                    // 由南家標記遊戲開始
-                    if (myRole === "south") {
+                    if (myRole === "south" && data.gameStarted !== true) {
+                        // 由南家觸發開始標籤
                         roomRef.update({ gameStarted: true });
                     }
-                }
-            });
-
-            // 監聽遊戲開始訊號
-            roomRef.child('gameStarted').on('value', (snap) => {
-                if (snap.val() === true) {
-                    // 轉場動畫或直接跳轉
-                    window.location.href = "four_people.html";
+                    
+                    if (data.gameStarted === true) {
+                        window.location.href = "four_people.html";
+                    }
                 }
             });
         }
