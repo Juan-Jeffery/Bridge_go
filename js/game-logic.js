@@ -405,24 +405,48 @@ function playTrickAnimation(winnerRole) {
         }
     }, 850);
 }
+let selectedCardIndex = -1; // 記錄目前被點選(升起)的牌索引
 
 async function renderHand(hand) {
-    if (isRendering) return; isRendering = true; const container = document.getElementById('my-hand');
-    container.innerHTML = ""; const tableSnap = await gameRef.child('table').get();
+    if (isRendering) return; 
+    isRendering = true; 
+    const container = document.getElementById('my-hand');
+    container.innerHTML = ""; 
+    
+    const tableSnap = await gameRef.child('table').get();
     const tableCards = tableSnap.val() ? Object.values(tableSnap.val()) : [];
     const leadSuit = tableCards.length > 0 ? tableCards[0].s : null; 
     const hasLeadSuit = leadSuit ? hand.some(c => c.s === leadSuit) : false;
     
     const sorted = sortHand(hand);
+    
     sorted.forEach((card, index) => {
         const div = document.createElement('div');
         
         let isBidding = (!currentBiddingState || currentBiddingState.status !== "finished");
         let isDisabled = isBidding || (leadSuit && hasLeadSuit && card.s !== leadSuit);
         
+        // 加上顏色、禁用、以及「選中」的樣式
         div.className = `card ${(card.s === '♥' || card.s === '♦') ? 'red' : ''} ${isDisabled ? 'disabled' : ''}`;
-        div.style.zIndex = index; div.innerHTML = `${card.v}<span>${card.s}</span>`;
-        div.onclick = (e) => { if (!isDisabled) startPlayAnimation(e.currentTarget, card, index, sorted); };
+        if (index === selectedCardIndex) div.classList.add('selected');
+        
+        div.style.zIndex = index; 
+        div.innerHTML = `${card.v}<span>${card.s}</span>`;
+        
+        div.onclick = (e) => { 
+            if (isDisabled) return;
+
+            // --- 兩段式確認邏輯 ---
+            if (selectedCardIndex === index) {
+                // 第二次點擊：確認送出
+                selectedCardIndex = -1; 
+                startPlayAnimation(e.currentTarget, card, index, sorted);
+            } else {
+                // 第一次點擊：選中並升起
+                selectedCardIndex = index;
+                renderHand(hand); // 重新渲染手牌來更新視覺
+            }
+        };
         container.appendChild(div);
     });
     isRendering = false;

@@ -251,53 +251,49 @@ body, html { overflow: hidden; background-color: #15202b; }
 
 #vote-status-display span { margin: 0 10px; display: inline-block; }
 
+.card.selected {
+    transform: translateY(-35px) scale(1.1) !important;
+    z-index: 100 !important;
+    border: 2px solid var(--premium-gold);
+    box-shadow: 0 10px 20px rgba(0,0,0,0.6);
+}
 
-/* ========================================================= */
-/* 📱 手機版 (橫向) 遊戲畫面響應式優化 (RWD) */
-/* ========================================================= */
 @media screen and (max-width: 900px), screen and (max-height: 500px) {
     .table-container { 
-        grid-template-columns: 100px 1fr 100px; 
-        grid-template-rows: 90px 1fr 110px; 
+        /* 兩側縮小到 80px，騰出空間給中間 */
+        grid-template-columns: 80px 1fr 80px; 
+        grid-template-rows: 70px 1fr 100px; 
     }
     
-    .player-info { padding: 5px 8px; font-size: 0.75rem; margin: 5px; }
+    .player-info { padding: 4px 8px; font-size: 0.7rem; margin: 3px; }
     
     .card { 
-        width: 42px; height: 65px; margin-left: -20px; 
-        padding: 3px; font-size: 0.85rem; border-radius: 4px;
+        width: 38px; height: 58px; /* 牌稍微縮小 */
+        margin-left: -12px;        /* 【重點】原本是 -20，改為 -12 牌距會變寬，手比較好點 */
+        padding: 3px; font-size: 0.8rem; border-radius: 4px;
     }
-    .card:hover:not(.disabled) { transform: translateY(-15px) scale(1.1); }
-    .center-field { gap: 15px; margin: 5px; }
     
-    .status-bar { top: 5px; left: 5px; padding: 8px 12px; font-size: 0.75rem; border-left-width: 3px; }
+    /* 手機上選中時不要跳太高，以免擋到上面的字 */
+    .card.selected { transform: translateY(-20px) scale(1.1) !important; }
+
+    .status-bar { top: 5px; left: 5px; padding: 6px 10px; font-size: 0.7rem; min-width: 160px; }
     
     .trick-pile { width: 30px; height: 45px; font-size: 1rem; }
-    .pile-bottom { bottom: 85px; right: 10px; }
-    .pile-top { top: 10px; right: 10px; }
-    .pile-left { top: 10px; left: 10px; }
-    .pile-right { top: 10px; right: 10px; }
     
-    .table-card::after { font-size: 0.65rem; padding: 2px 6px; top: -25px; }
-
+    /* 喊牌面板在手機上也要縮小 */
     #bidding-modal { 
-        padding: 15px 20px; border-radius: 15px; 
-        width: 95vw; max-width: 600px; box-sizing: border-box;
+        padding: 12px 15px; border-radius: 12px; 
+        width: 95vw; max-width: 550px;
     }
-    #bidding-title { font-size: 1.2rem; margin-bottom: 5px; }
-    #bidding-history { font-size: 0.8rem; margin-bottom: 10px; }
-    .bid-grid { gap: 5px; margin-bottom: 10px; }
-    .bid-btn { padding: 8px 4px; font-size: 0.9rem; border-radius: 6px; }
-    .pass-btn { padding: 10px; font-size: 1rem; border-radius: 8px; }
+    #bidding-title { font-size: 1.1rem; }
+    .bid-btn { padding: 6px 3px; font-size: 0.85rem; }
 
-    /* 手機版勝利畫面縮放 */
-    .victory-card { padding: 30px 40px; width: 85vw; box-sizing: border-box; }
-    #victory-title { font-size: 2.5rem; }
-    #victory-team-names { font-size: 1.5rem; margin-bottom: 20px; }
-    #victory-stats { font-size: 1rem; padding: 15px; }
+    /* 勝利畫面在手機上也要更精簡 */
+    .victory-card { padding: 25px; width: 85vw; }
+    #victory-title { font-size: 2rem; }
+    #victory-team-names { font-size: 1.3rem; }
+    #victory-stats div { font-size: 0.95rem; }
     
-    /* 手機版按鈕改為上下排列 */
-    .victory-buttons { flex-direction: column; gap: 12px; }
-    .btn-action { width: 100%; box-sizing: border-box; }
-    #vote-status-display span { display: block; margin: 3px 0; }
+    .victory-buttons { flex-direction: column; gap: 10px; }
+    .btn-action { width: 100%; padding: 10px; font-size: 1rem; }
 }
