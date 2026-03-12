@@ -105,3 +105,115 @@ body, html { overflow: hidden; }
 }
 .score-tag { color: var(--btn-gold); font-weight: bold; }
 .waiting-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1000; color: white;}
+
+/* --- 喊牌階段介面 (Bidding Box) --- */
+#bidding-modal {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    background: linear-gradient(145deg, var(--premium-dark) 0%, var(--premium-bg) 100%);
+    border: 2px solid var(--premium-gold); border-radius: 15px;
+    padding: 20px 30px; z-index: 2000; color: white; text-align: center;
+    box-shadow: 0 15px 40px rgba(0,0,0,0.8);
+    transition: all 0.8s cubic-bezier(0.25, 0.8, 0.25, 1); /* 飛行動畫的曲線 */
+    display: none; /* 預設隱藏 */
+}
+
+/* 喊完牌後飛向左上角的動畫 Class */
+#bidding-modal.fly-to-top-left {
+    top: 20px; left: 20px;
+    transform: translate(0, 0) scale(0.2);
+    opacity: 0;
+    pointer-events: none;
+}
+
+#bidding-modal h3 { margin: 0 0 10px 0; color: var(--premium-gold); letter-spacing: 2px; }
+#bidding-history { font-size: 0.9rem; margin-bottom: 15px; color: var(--text-soft); min-height: 20px; }
+
+/* 5x7 喊牌按鈕網格 */
+.bid-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-bottom: 15px; }
+.bid-btn { 
+    padding: 8px 5px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.2); 
+    color: white; border-radius: 5px; cursor: pointer; font-size: 0.9rem; font-weight: bold; transition: 0.2s;
+}
+.bid-btn:disabled { opacity: 0.2; cursor: not-allowed; border-color: transparent; }
+.bid-btn:hover:not(:disabled) { background: var(--premium-gold); color: #000; border-color: var(--premium-gold); transform: scale(1.1); }
+
+.pass-btn { width: 100%; background: #c0392b; border: none; padding: 10px; font-size: 1rem; }
+.pass-btn:hover:not(:disabled) { background: #e74c3c; color: white; transform: scale(1.05); }
+
+/* 左上角合約顯示區 */
+#contract-display {
+    color: var(--premium-gold); font-weight: bold; font-size: 1.05rem;
+    margin-bottom: 5px; padding-bottom: 5px; border-bottom: 1px dashed rgba(212, 175, 55, 0.5);
+    display: none; /* 喊牌結束後才顯示 */
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* 📱 手機版 (橫式) 遊戲畫面響應式優化 */
+@media screen and (max-width: 900px), screen and (max-height: 500px) {
+    /* 1. 縮減四周玩家佔用的空間 */
+    .table-container { 
+        grid-template-columns: 100px 1fr 100px; 
+        grid-template-rows: 90px 1fr 110px; 
+    }
+    
+    /* 2. 縮小玩家標籤 */
+    .player-info { 
+        padding: 5px 8px; 
+        font-size: 0.75rem; 
+        margin: 5px; 
+    }
+    
+    /* 3. 縮小撲克牌尺寸 */
+    .card { 
+        width: 42px; 
+        height: 65px; 
+        margin-left: -20px; /* 調整卡片重疊幅度 */
+        padding: 3px; 
+        font-size: 0.85rem; 
+        border-radius: 4px;
+    }
+    
+    /* 4. 手機上懸停浮起幅度減少，避免超出畫面 */
+    .card:hover:not(.disabled) { 
+        transform: translateY(-15px) scale(1.1); 
+    }
+    
+    /* 5. 桌面中間四張牌的間距縮小 */
+    .center-field { gap: 15px; margin: 5px; }
+    
+    /* 6. 縮小計分板與狀態列 */
+    .status-bar { 
+        top: 5px; left: 5px; 
+        padding: 8px 12px; 
+        font-size: 0.75rem; 
+        border-left-width: 3px;
+    }
+    
+    /* 7. 縮小吃墩背卡 */
+    .trick-pile { 
+        width: 30px; height: 45px; 
+        font-size: 1rem; 
+    }
+    .pile-bottom { bottom: 85px; right: 10px; }
+    .pile-top { top: 10px; right: 10px; }
+    .pile-left { top: 10px; left: 10px; }
+    .pile-right { top: 10px; right: 10px; }
+    
+    /* 8. 縮小桌面上牌的玩家名字提示 */
+    .table-card::after { 
+        font-size: 0.65rem; 
+        padding: 2px 6px; 
+        top: -25px;
+    }
+}
