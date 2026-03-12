@@ -11,15 +11,17 @@
     --text-muted: #95a5a6;
 }
 
-/* --- 1. 基礎佈局與環境 --- */
+/* --- 1. 基礎環境：確保手機工具列不遮擋 --- */
 body, html { 
     overflow: hidden; background-color: #15202b; 
-    height: 100dvh; margin: 0; font-family: "PingFang TC", "Microsoft JhengHei", sans-serif;
+    height: 100dvh; margin: 0; 
+    font-family: "PingFang TC", "Microsoft JhengHei", sans-serif;
 }
 
 .table-container { 
     display: grid; width: 100vw; height: 100dvh; 
     background: radial-gradient(circle, #1a5d1a 0%, #112a10 100%); 
+    /* 電腦版：寬闊比例 */
     grid-template-columns: 200px 1fr 200px; 
     grid-template-rows: 150px 1fr 180px; 
 }
@@ -47,7 +49,7 @@ body, html {
     100% { box-shadow: 0 0 15px var(--flame-red), 0 0 25px var(--flame-orange); }
 }
 
-/* --- 2. 桌面中心出牌區 --- */
+/* --- 2. 桌面中心戰場 --- */
 .center-field { 
     grid-column: 2; grid-row: 2; 
     border: 2px dashed rgba(255,255,255,0.05); 
@@ -56,7 +58,6 @@ body, html {
     position: relative; gap: 30px; 
 }
 
-/* 桌面上的牌與名字標籤 */
 .table-card { position: relative; }
 .table-card::after {
     content: attr(data-playername); position: absolute; top: -40px; left: 50%; transform: translateX(-50%);
@@ -64,15 +65,14 @@ body, html {
     white-space: nowrap; opacity: 0; transition: opacity 0.2s; pointer-events: none; border: 1px solid var(--premium-gold);
 }
 .table-card:hover::after { opacity: 1; }
-
-/* 最強牌發光 */
 .best-card { border: 3px solid var(--best-glow) !important; box-shadow: 0 0 20px var(--best-glow) !important; z-index: 50; }
-
-/* 吃墩飛行動畫 */
-.card.flying { transition: all 0.8s cubic-bezier(0.5, 0, 0.5, 1); position: fixed; z-index: 1000 !important; pointer-events: none; }
+.card.flying { transition: all 0.8s cubic-bezier(0.5, 0, 0.5, 1); position: fixed; z-index: 1000 !important; }
 
 /* --- 3. 手牌與兩段式確認 --- */
-.hand-area { display: flex; justify-content: center; width: 100%; height: 100%; align-items: center; }
+.hand-area { 
+    display: flex; justify-content: center; width: 100%; height: 100%; align-items: center; 
+    padding: 0 10px; box-sizing: border-box;
+}
 
 .card { 
     width: 60px; height: 90px; background: #ffffff; border-radius: 6px; 
@@ -84,91 +84,99 @@ body, html {
 .card:first-child { margin-left: 0; }
 .card.red { color: #e74c3c; }
 
-/* 【關鍵】兩段式確認：被選中的牌升起並發金光 */
+/* 【關鍵】兩段式確認樣式 */
 .card.selected {
     transform: translateY(-45px) scale(1.15) !important;
     z-index: 1000 !important;
     border: 2px solid var(--premium-gold);
     box-shadow: 0 15px 30px rgba(0,0,0,0.8);
 }
-
-.card.disabled { opacity: 0.6; background-color: #d1d1d1; pointer-events: none; filter: brightness(0.8); }
+.card.disabled { opacity: 0.6; background-color: #d1d1d1; pointer-events: none; filter: brightness(0.9); }
 
 /* --- 4. 狀態列與計分板 --- */
 .status-bar { 
     position: absolute; top: 15px; left: 15px; background: rgba(0,0,0,0.75); padding: 12px; 
     border-radius: 8px; font-size: 0.9rem; z-index: 100; border-left: 5px solid var(--premium-gold);
-    color: var(--text-soft); min-width: 220px; backdrop-filter: blur(5px);
+    color: var(--text-soft); min-width: 200px; backdrop-filter: blur(5px);
 }
 #contract-display { color: var(--premium-gold); font-weight: bold; border-bottom: 1px dashed rgba(212, 175, 55, 0.4); padding-bottom: 8px; margin-bottom: 8px; }
 #score-display-teams { border-bottom: 1px dashed rgba(212, 175, 55, 0.4); padding-bottom: 8px; margin-bottom: 8px; line-height: 1.6; }
-.score-tag { color: var(--premium-gold); font-weight: bold; font-size: 1.1rem; }
+.score-tag { color: var(--premium-gold); font-weight: bold; }
 
-/* --- 5. 喊牌介面 (Bidding Box) --- */
+/* --- 5. 喊牌面板 --- */
 #bidding-modal {
     position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
     background: linear-gradient(145deg, rgba(44, 62, 80, 0.95) 0%, rgba(26, 37, 47, 0.98) 100%);
     border: 1px solid rgba(212, 175, 55, 0.3); border-radius: 20px;
-    padding: 25px 35px; z-index: 2000; color: var(--text-soft); text-align: center;
+    padding: 25px; z-index: 2000; color: var(--text-soft); text-align: center;
     box-shadow: 0 25px 50px rgba(0,0,0,0.8); backdrop-filter: blur(15px);
     transition: all 0.8s cubic-bezier(0.25, 0.8, 0.25, 1); display: none;
 }
-.bid-grid { display: grid; grid-template-rows: repeat(5, 1fr); grid-template-columns: repeat(7, 1fr); grid-auto-flow: column; gap: 8px; margin-bottom: 20px; }
-.bid-btn { padding: 10px 5px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: white; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.2s; }
-.bid-btn:disabled { opacity: 0.15; filter: grayscale(100%); cursor: not-allowed; }
-.bid-btn:hover:not(:disabled) { background: var(--premium-gold); color: #111; transform: scale(1.1); box-shadow: 0 0 15px var(--premium-gold); }
-.pass-btn { width: 100%; background: linear-gradient(135deg, #c0392b, #8e44ad); border: none; padding: 12px; font-size: 1.1rem; border-radius: 10px; color: white; font-weight: bold; letter-spacing: 2px; }
+.bid-grid { display: grid; grid-template-rows: repeat(5, 1fr); grid-template-columns: repeat(7, 1fr); grid-auto-flow: column; gap: 8px; margin-bottom: 15px; }
+.bid-btn { padding: 10px 5px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: white; border-radius: 8px; cursor: pointer; transition: 0.2s; }
+.bid-btn:disabled { opacity: 0.15; filter: grayscale(100%); }
+.pass-btn { width: 100%; background: linear-gradient(135deg, #c0392b, #8e44ad); border: none; padding: 12px; font-size: 1.1rem; border-radius: 10px; color: white; font-weight: bold; }
 
-/* --- 6. 勝利/失敗結算畫面 (Victory) --- */
+/* --- 6. 勝利結算 --- */
 #victory-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0, 0, 0, 0.85); display: none; justify-content: center; align-items: center; z-index: 3000; backdrop-filter: blur(8px); opacity: 0; transition: opacity 1s; }
 #victory-overlay.show { display: flex; opacity: 1; }
-.victory-card { background: linear-gradient(145deg, var(--premium-dark) 0%, var(--premium-bg) 100%); border: 2px solid var(--premium-gold); border-radius: 20px; padding: 40px; text-align: center; color: white; box-shadow: 0 0 80px rgba(212, 175, 55, 0.4); animation: popInAndGlow 1.2s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
-@keyframes popInAndGlow { 0% { transform: scale(0.5); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
-#victory-title { font-size: 3rem; color: var(--premium-gold); margin-bottom: 15px; letter-spacing: 4px; }
-#victory-stats div { margin: 12px 0; font-size: 1.2rem; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 8px; }
+.victory-card { background: linear-gradient(145deg, var(--premium-dark) 0%, var(--premium-bg) 100%); border: 2px solid var(--premium-gold); border-radius: 20px; padding: 35px; text-align: center; color: white; box-shadow: 0 0 80px rgba(212, 175, 55, 0.4); animation: popInAndGlow 1.2s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+#victory-title { font-size: 3rem; color: var(--premium-gold); margin-bottom: 10px; }
+#victory-stats div { margin: 10px 0; font-size: 1.15rem; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 8px; }
 .victory-buttons { display: flex; justify-content: center; gap: 15px; margin-top: 25px; }
-.btn-action { padding: 12px 30px; border-radius: 30px; cursor: pointer; font-weight: bold; font-size: 1.1rem; transition: 0.3s; }
+.btn-action { padding: 12px 25px; border-radius: 30px; cursor: pointer; font-weight: bold; }
 .btn-again { background: var(--premium-gold); color: #111; border: none; }
-.btn-again:hover { transform: translateY(-3px); box-shadow: 0 5px 15px var(--premium-gold); }
 .btn-lobby { background: transparent; color: var(--premium-gold); border: 2px solid var(--premium-gold); }
-.btn-lobby:hover { background: rgba(212, 175, 55, 0.1); }
-#vote-status-display { margin-top: 15px; }
-#vote-status-display span { margin: 0 8px; font-size: 0.85rem; color: var(--text-muted); }
 
 /* ========================================================= */
-/* 📱 手機自適應優化 (直式手機 & 橫式手機) */
+/* 📱 直式手機與 RWD 強制優化 (重點在此) */
 /* ========================================================= */
 
 @media screen and (max-width: 900px), screen and (orientation: portrait) {
-    /* 1. 當手機拿直的，給底部手牌 22dvh 的高度，確保 100% 露出 */
+    /* 1. 當手機拿直的，牌桌自動變成長條形，底部手牌佔比增加到 25dvh 確保不被擋住 */
     .table-container { 
-        grid-template-columns: 65px 1fr 65px; 
-        grid-template-rows: 12dvh 1fr 22dvh; 
+        grid-template-columns: 60px 1fr 60px; 
+        grid-template-rows: 10dvh 1fr 25dvh; 
     }
 
-    /* 2. 直式手機名字改為直寫 */
+    /* 2. 名字改為直書，騰出寬度空間給桌面 */
     .pos-left .player-info, .pos-right .player-info { 
-        writing-mode: vertical-lr; padding: 10px 6px; font-size: 0.75rem; 
+        writing-mode: vertical-lr; padding: 10px 5px; font-size: 0.7rem; 
     }
 
-    /* 3. 手牌自適應縮放，並拉寬牌距 (margin-left: -5vw) */
+    /* 3. 牌張縮小且使用 vw 單位，確保 13 張牌能排入螢幕寬度，牌距拉寬 (-5vw) 防止誤觸 */
     .card { 
-        width: 12vw; max-width: 48px;
-        height: 18vw; max-height: 72px;
-        margin-left: -5vw; 
-        font-size: 0.85rem;
+        width: 11.5vw; max-width: 48px;
+        height: 17vw; max-height: 72px;
+        margin-left: -4.5vw; 
+        font-size: 0.8rem;
+        padding: 4px;
     }
-    .card.selected { transform: translateY(-5dvh) scale(1.1) !important; }
+    
+    /* 手機上點選升起的高度調整 */
+    .card.selected { transform: translateY(-4dvh) scale(1.1) !important; }
 
-    /* 4. 縮小各類 UI 元件 */
-    .status-bar { top: 5px; left: 5px; padding: 8px; font-size: 0.75rem; min-width: 150px; }
-    #bidding-modal { width: 92vw; padding: 15px; }
+    /* 4. 狀態列微縮 */
+    .status-bar { top: 5px; left: 5px; padding: 8px; font-size: 0.7rem; min-width: 140px; }
+    
+    /* 5. 喊牌面板自適應 */
+    #bidding-modal { width: 95vw; padding: 15px 10px; }
+    .bid-grid { gap: 4px; }
+    .bid-btn { padding: 8px 2px; font-size: 0.8rem; }
+
+    /* 6. 勝利畫面縮小按鈕改上下排 */
     .victory-card { width: 90vw; padding: 25px 15px; }
+    #victory-title { font-size: 2.2rem; }
     .victory-buttons { flex-direction: column; gap: 10px; }
     .btn-action { width: 100%; }
 }
 
-/* --- 絕對定位補完 --- */
+/* 針對超級窄手機的保險 */
+@media screen and (max-width: 360px) {
+    .card { margin-left: -5.5vw; }
+}
+
+/* --- 定位補完 --- */
 .pos-top { grid-column: 2; grid-row: 1; }
 .pos-bottom { grid-column: 2; grid-row: 3; }
 .pos-left { grid-column: 1; grid-row: 2; }
