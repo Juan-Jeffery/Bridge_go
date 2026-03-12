@@ -3,111 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>橋牌四人對戰 - 火焰特效版</title>
-    <style>
-        :root {
-            --felt-green: #246324;
-            --info-gold: #f1c40f;
-            --card-white: #ffffff;
-            --best-glow: #ffeb3b;
-            --flame-red: #ff4500;
-            --flame-orange: #ff8c00;
-        }
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background-color: #1a3c14; color: white; font-family: sans-serif; overflow: hidden; }
-        
-        .table-container { 
-            display: grid; 
-            grid-template-columns: 200px 1fr 200px; 
-            grid-template-rows: 150px 1fr 180px; 
-            width: 100vw; height: 100vh; 
-            background: radial-gradient(circle, var(--felt-green) 0%, #153610 100%); 
-        }
-
-        .player-slot { position: relative; display: flex; flex-direction: column; justify-content: center; align-items: center; }
-        
-        /* 基礎名稱框 */
-        .player-info { 
-            background: rgba(0,0,0,0.7); padding: 8px 15px; border-radius: 8px; 
-            font-size: 0.9rem; border: 1px solid var(--info-gold); 
-            margin: 10px; text-align: center; z-index: 10;
-            transition: all 0.5s ease;
-        }
-
-        /* 火焰燃燒動畫特效 */
-        .active-turn {
-            border-color: var(--flame-red);
-            animation: flame-burn 1.5s infinite alternate;
-            box-shadow: 0 0 10px var(--flame-red), 0 0 20px var(--flame-orange);
-            font-weight: bold;
-            transform: scale(1.1);
-        }
-
-        @keyframes flame-burn {
-            0% { box-shadow: 0 0 10px var(--flame-red), 0 0 15px var(--flame-orange); }
-            50% { box-shadow: 0 0 20px var(--flame-red), 0 0 30px var(--flame-orange); }
-            100% { box-shadow: 0 0 15px var(--flame-red), 0 0 25px var(--flame-orange); }
-        }
-
-        .trick-pile {
-            position: absolute; width: 45px; height: 65px;
-            background: #2c3e50; border: 2px solid var(--info-gold);
-            border-radius: 5px; display: none;
-            justify-content: center; align-items: center;
-            font-weight: bold; color: var(--info-gold);
-            box-shadow: 2px 2px 8px rgba(0,0,0,0.5);
-            font-size: 1.3rem; z-index: 5;
-        }
-        .pile-top    { top: 20px; right: 20px; }
-        .pile-bottom { bottom: 100px; right: 40px; }
-        .pile-left   { top: 20px; left: 20px; }
-        .pile-right  { top: 20px; right: 20px; }
-
-        .pos-top { grid-column: 2; grid-row: 1; }
-        .pos-bottom { grid-column: 2; grid-row: 3; align-self: center; }
-        .pos-left  { grid-column: 1; grid-row: 2; }
-        .pos-right  { grid-column: 3; grid-row: 2; }
-
-        .center-field { 
-            grid-column: 2; grid-row: 2; 
-            border: 2px dashed rgba(255,255,255,0.1); 
-            margin: 20px; border-radius: 20px; 
-            display: flex; justify-content: center; align-items: center; 
-            position: relative; gap: 30px; 
-        }
-        
-        /* 修正手牌重疊問題 */
-        .hand-area { display: flex; justify-content: center; width: 100%; height: 120px; padding-bottom: 20px; }
-        
-        .card { 
-            width: 60px; height: 90px; background: var(--card-white); border-radius: 5px; 
-            margin-left: -20px; box-shadow: 2px 2px 6px rgba(0,0,0,0.4); color: black; 
-            display: flex; flex-direction: column; padding: 6px; font-weight: bold; 
-            cursor: pointer; user-select: none; position: relative;
-            transition: transform 0.3s, opacity 0.3s;
-        }
-        .card:first-child { margin-left: 0; }
-        .card:hover:not(.disabled) { transform: translateY(-30px) scale(1.15); z-index: 100 !important; }
-        .card.red { color: #e74c3c; }
-
-        /* 出牌後的灰階過濾：領頭牌判定結束後會由 JS 移除此 class */
-        .card.disabled { opacity: 0.3; filter: grayscale(90%); cursor: not-allowed; }
-
-        .best-card { border: 3px solid var(--best-glow); box-shadow: 0 0 20px var(--best-glow); z-index: 50; }
-        .table-card::after {
-            content: attr(data-playername); position: absolute; top: -35px; left: 50%; transform: translateX(-50%);
-            background: rgba(0,0,0,0.85); color: var(--info-gold); padding: 4px 10px; border-radius: 5px; font-size: 0.75rem;
-            white-space: nowrap; opacity: 0; transition: opacity 0.2s; pointer-events: none; border: 1px solid var(--info-gold);
-        }
-        .table-card:hover::after { opacity: 1; }
-        .card.flying { transition: all 0.8s ease-in-out; position: fixed; z-index: 1000 !important; pointer-events: none; }
-
-        .status-bar { 
-            position: absolute; top: 15px; left: 15px; background: rgba(0,0,0,0.75); padding: 15px; 
-            border-radius: 8px; font-size: 0.95rem; z-index: 100; line-height: 1.7; border-left: 5px solid var(--info-gold);
-        }
-        .score-tag { color: var(--info-gold); font-weight: bold; }
-        .waiting-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1000; }
-    </style>
+    <title>橋牌四人對戰 - 專業競技版</title>
+    
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/game.css">
 </head>
 <body>
 
@@ -129,12 +28,15 @@
             <div class="trick-pile pile-left" id="pile-left">0</div>
             <div style="writing-mode: vertical-lr; font-size: 2rem;">🎴</div>
         </div>
+        
         <div class="center-field" id="table-center"></div>
+        
         <div class="player-slot pos-right">
             <div class="player-info" id="label-right">等待中...</div>
             <div class="trick-pile pile-right" id="pile-right">0</div>
             <div style="writing-mode: vertical-lr; font-size: 2rem;">🎴</div>
         </div>
+        
         <div class="player-slot pos-bottom">
             <div class="player-info" id="label-bottom">- (你)</div>
             <div class="trick-pile pile-bottom" id="pile-bottom">0</div>
@@ -144,211 +46,9 @@
 
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
-    <script>
-        const firebaseConfig = {
-            apiKey: "AIzaSyDAkwCXf6_Fd4jp79tk6YUC9yHynYXjLDQ",
-            authDomain: "bridge-go.firebaseapp.com",
-            projectId: "bridge-go",
-            databaseURL: "https://bridge-go-default-rtdb.firebaseio.com",
-            appId: "1:212052576521:web:dd45f303d59f5315ddabd8"
-        };
-        firebase.initializeApp(firebaseConfig);
-        const database = firebase.database();
-        const urlParams = new URLSearchParams(window.location.search);
-        const myLocalName = urlParams.get('pname'); 
-        const roomId = urlParams.get('rid') || "Room_Alpha";
-        const playersRef = database.ref('players/' + roomId);
-        const gameRef = database.ref('games/' + roomId);
+    
+    <script src="js/firebase-config.js"></script>
+    <script src="js/game-logic.js"></script>
 
-        let myRole = ""; let currentPlayersData = {}; let isRendering = false;
-
-        window.onbeforeunload = function() { if (myRole) { playersRef.child(myRole).remove(); } };
-
-        function initializeGame() {
-            if (!myLocalName) { window.location.href = "lobby.html"; return; }
-            database.ref().on('value', (snap) => {
-                const all = snap.val() || {};
-                const pList = (all.players && all.players[roomId]) ? all.players[roomId] : {};
-                const gStatus = (all.games && all.games[roomId]) ? all.games[roomId] : {};
-                if (gStatus.gameStarted !== true || Object.keys(pList).length === 0) return; 
-                myRole = Object.keys(pList).find(k => pList[k] && pList[k].name === myLocalName);
-                if (myRole) {
-                    database.ref().off('value'); document.getElementById('loading').style.display = 'none';
-                    document.getElementById('my-name-display').innerText = myLocalName;
-                    startListening(roomId);
-                    if (myRole === "south") { gameRef.child('hands').get().then(h => { if (!h.exists()) setupNewDeck(); }); }
-                }
-            });
-        }
-
-        function startListening(rid) {
-            playersRef.get().then(snap => { currentPlayersData = snap.val() || {}; updateScoreboardUI({ ns: 0, ew: 0 }); });
-            playersRef.on('value', snap => {
-                currentPlayersData = snap.val() || {}; updatePlayerLabels(currentPlayersData);
-            });
-            gameRef.child('scores').on('value', snap => { updateScoreboardUI(snap.val() || { ns: 0, ew: 0 }); });
-            gameRef.child('personalScores').on('value', snap => { updatePersonalTrickPiles(snap.val() || {}); });
-            gameRef.child('hands/' + myRole).on('value', snap => { if (snap.val()) renderHand(snap.val()); });
-            
-            // 監聽輪次並套用火焰特效
-            gameRef.child('turn').on('value', snap => {
-                const t = snap.val();
-                if (t && currentPlayersData[t]) {
-                    document.getElementById('turn-name-display').innerText = (t === myRole) ? `⭐ ${currentPlayersData[t].name}` : currentPlayersData[t].name;
-                    updateFlameEffect(t);
-                }
-            });
-
-            gameRef.child('table').on('value', async (snap) => {
-                const center = document.getElementById('table-center'); const tableCards = snap.val();
-                
-                // --- 核心修正：出完牌恢復正常 ---
-                const hSnap = await gameRef.child('hands/' + myRole).get();
-                if (hSnap.exists()) {
-                    // 若桌面上沒牌，代表是領頭，renderHand 會自動移除所有 disabled class
-                    renderHand(hSnap.val());
-                }
-
-                if (!tableCards) { center.innerHTML = ""; return; }
-                center.innerHTML = ""; const cardsArray = Object.values(tableCards);
-                const leadSuit = cardsArray[0].s; const vals = {'A':14, 'K':13, 'Q':12, 'J':11, '10':10, '9':9, '8':8, '7':7, '6':6, '5':5, '4':4, '3':3, '2':2};
-                let bestCard = cardsArray[0]; cardsArray.forEach(c => { if (c.s === leadSuit && vals[c.v] > vals[bestCard.v]) bestCard = c; });
-                
-                Object.entries(tableCards).forEach(([id, data]) => {
-                    const cardDiv = document.createElement('div');
-                    const isBest = (data.v === bestCard.v && data.s === bestCard.s);
-                    cardDiv.className = `card table-card ${(data.s === '♥' || data.s === '♦') ? 'red' : ''} ${isBest ? 'best-card' : ''}`;
-                    cardDiv.setAttribute('data-playername', data.playerName); cardDiv.innerHTML = `${data.v}<span>${data.s}</span>`;
-                    center.appendChild(cardDiv);
-                });
-                if (Object.keys(tableCards).length === 4) { checkTrickWinner(tableCards); }
-            });
-        }
-
-        function updateFlameEffect(currentTurnRole) {
-            const roles = ['south', 'west', 'north', 'east'];
-            const myIdx = roles.indexOf(myRole);
-            const posNames = ['bottom', 'left', 'top', 'right'];
-            
-            // 移除所有人的火焰效果
-            posNames.forEach(pos => document.getElementById(`label-${pos}`).classList.remove('active-turn'));
-            
-            // 找到當前回合的人在我的畫面上的對應位置
-            const turnIdx = (roles.indexOf(currentTurnRole) - myIdx + 4) % 4;
-            document.getElementById(`label-${posNames[turnIdx]}`).classList.add('active-turn');
-        }
-
-        function updateScoreboardUI(scores = { ns: 0, ew: 0 }) {
-            const getN = (r) => currentPlayersData[r] ? currentPlayersData[r].name : r;
-            const container = document.getElementById('score-display-teams'); if (!container) return;
-            container.innerHTML = `${getN('south')} & ${getN('north')}: <span class="score-tag">${scores.ns || 0}</span> 墩<br>${getN('west')} & ${getN('east')}: <span class="score-tag">${scores.ew || 0}</span> 墩`;
-        }
-
-        function updatePersonalTrickPiles(personalScores) {
-            const roles = ['south', 'west', 'north', 'east']; const myIdx = roles.indexOf(myRole); const posNames = ['bottom', 'left', 'top', 'right'];
-            roles.forEach((role, idx) => {
-                const relativePos = posNames[(idx - myIdx + 4) % 4]; const score = personalScores[role] || 0;
-                const el = document.getElementById(`pile-${relativePos}`);
-                if (score > 0) { el.style.display = 'flex'; el.innerText = score; } else { el.style.display = 'none'; }
-            });
-        }
-
-        function checkTrickWinner(tableCards) {
-            const cardsArray = Object.values(tableCards); const leadSuit = cardsArray[0].s; const vals = {'A':14, 'K':13, 'Q':12, 'J':11, '10':10, '9':9, '8':8, '7':7, '6':6, '5':5, '4':4, '3':3, '2':2};
-            let winner = cardsArray[0]; cardsArray.forEach(c => { if (c.s === leadSuit && vals[c.v] > vals[winner.v]) winner = c; });
-            setTimeout(() => { playTrickAnimation(winner.from); }, 1200);
-        }
-
-        function playTrickAnimation(winnerRole) {
-            const roles = ['south', 'west', 'north', 'east']; const myIdx = roles.indexOf(myRole); const posMap = ['bottom', 'left', 'top', 'right'];
-            const winnerPos = posMap[(roles.indexOf(winnerRole) - myIdx + 4) % 4];
-            const targetEl = document.getElementById(`label-${winnerPos}`); const rect = targetEl.getBoundingClientRect();
-            document.querySelectorAll('.table-card').forEach(card => {
-                const cardRect = card.getBoundingClientRect(); card.classList.add('flying');
-                card.style.left = cardRect.left + 'px'; card.style.top = cardRect.top + 'px';
-                setTimeout(() => {
-                    card.style.left = (rect.left + 20) + 'px'; card.style.top = (rect.top + 20) + 'px';
-                    card.style.transform = 'scale(0.1) rotate(180deg)'; card.style.opacity = '0';
-                }, 50);
-            });
-            setTimeout(() => {
-                if (myRole === "south") {
-                    const team = (winnerRole === 'south' || winnerRole === 'north') ? 'ns' : 'ew';
-                    gameRef.child('scores/' + team).transaction(s => (s || 0) + 1);
-                    gameRef.child('personalScores/' + winnerRole).transaction(s => (s || 0) + 1);
-                    gameRef.child('table').remove(); gameRef.child('turn').set(winnerRole);
-                }
-            }, 850);
-        }
-
-        async function renderHand(hand) {
-            if (isRendering) return; isRendering = true; const container = document.getElementById('my-hand');
-            container.innerHTML = ""; const tableSnap = await gameRef.child('table').get();
-            const tableCards = tableSnap.val() ? Object.values(tableSnap.val()) : [];
-            const leadSuit = tableCards.length > 0 ? tableCards[0].s : null; 
-            const hasLeadSuit = leadSuit ? hand.some(c => c.s === leadSuit) : false;
-            
-            const sorted = sortHand(hand);
-            sorted.forEach((card, index) => {
-                const div = document.createElement('div');
-                // 規則判定：若領頭花色已定，且手中有該花色，則非領頭花色的牌變灰
-                const isDisabled = (leadSuit && hasLeadSuit && card.s !== leadSuit);
-                
-                div.className = `card ${(card.s === '♥' || card.s === '♦') ? 'red' : ''} ${isDisabled ? 'disabled' : ''}`;
-                div.style.zIndex = index; div.innerHTML = `${card.v}<span>${card.s}</span>`;
-                div.onclick = (e) => { if (!isDisabled) startPlayAnimation(e.currentTarget, card, index, sorted); };
-                container.appendChild(div);
-            });
-            isRendering = false;
-        }
-
-        function startPlayAnimation(cardEl, cardData, index, hand) {
-            const rect = cardEl.getBoundingClientRect(); const clone = cardEl.cloneNode(true);
-            clone.style.position = 'fixed'; clone.style.left = rect.left + 'px'; clone.style.top = rect.top + 'px';
-            clone.style.zIndex = 1000; clone.style.transition = 'all 0.4s ease-out'; document.body.appendChild(clone);
-            const targetCenter = document.getElementById('table-center').getBoundingClientRect();
-            setTimeout(() => {
-                clone.style.left = (targetCenter.left + targetCenter.width/2 - 30) + 'px';
-                clone.style.top = (targetCenter.top + targetCenter.height/2 - 45) + 'px'; clone.style.transform = 'scale(1.1)';
-            }, 10);
-            setTimeout(() => { clone.remove(); tryPlayCard(cardData, index, hand); }, 400);
-        }
-
-        function sortHand(hand) {
-            const suitOrder = {'♠': 4, '♥': 3, '♦': 2, '♣': 1}; const valOrder = {'A':14, 'K':13, 'Q':12, 'J':11, '10':10, '9':9, '8':8, '7':7, '6':6, '5':5, '4':4, '3':3, '2':2};
-            const sorted = hand.sort((a, b) => { if (suitOrder[a.s] !== suitOrder[b.s]) return suitOrder[b.s] - suitOrder[a.s]; return valOrder[b.v] - valOrder[a.v]; });
-            return sorted.reverse();
-        }
-
-        function tryPlayCard(card, index, hand) {
-            gameRef.child('turn').get().then(snap => {
-                if (snap.val() !== myRole) return; const originalHand = [...hand].reverse();
-                originalHand.splice(originalHand.length - 1 - index, 1);
-                gameRef.child('hands/' + myRole).set(originalHand);
-                gameRef.child('table').push({ from: myRole, playerName: myLocalName, ...card });
-                const flow = { south: "west", west: "north", north: "east", east: "south" };
-                gameRef.child('turn').set(flow[myRole]);
-            });
-        }
-
-        function updatePlayerLabels(players) {
-            const roles = ['south', 'west', 'north', 'east']; const myIdx = roles.indexOf(myRole); const getP = (r) => (players[r] ? players[r].name : "離線中...");
-            document.getElementById('label-bottom').innerText = getP(myRole) + " (你)";
-            document.getElementById('label-left').innerText = getP(roles[(myIdx+1)%4]);
-            document.getElementById('label-top').innerText = getP(roles[(myIdx+2)%4]);
-            document.getElementById('label-right').innerText = getP(roles[(myIdx+3)%4]);
-        }
-
-        function setupNewDeck() {
-            const suits = ['♠', '♥', '♦', '♣'], values = ['A', 'K', 'Q', 'J', '10', '9', '8', '7', '6', '5', '4', '3', '2'];
-            let deck = []; suits.forEach(s => values.forEach(v => deck.push({s, v})));
-            deck.sort(() => Math.random() - 0.5);
-            gameRef.child('hands').set({ south: deck.slice(0, 13), west: deck.slice(13, 26), north: deck.slice(26, 39), east: deck.slice(39, 52) });
-            gameRef.child('turn').set("south"); gameRef.child('scores').set({ ns: 0, ew: 0 });
-            gameRef.child('personalScores').set({ south: 0, west: 0, north: 0, east: 0 });
-        }
-
-        initializeGame();
-    </script>
 </body>
 </html>
