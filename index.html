@@ -17,146 +17,128 @@
             --text-muted: #95a5a6;
         }
 
+        body, html {
+            height: 100%; margin: 0;
+            background-color: var(--premium-bg);
+            overflow: hidden;
+        }
+
         .main-menu {
             display: flex; flex-direction: column;
             justify-content: center; align-items: center;
-            height: 100%;
+            height: 100dvh;
+            padding: 20px;
         }
 
-        /* 尊爵邀請卡外框：改為橫向排版 (Flex Row) */
+        /* 尊爵卡片：改為垂直排版 (Column) */
         .menu-card {
             background: linear-gradient(145deg, rgba(44, 62, 80, 0.85) 0%, rgba(26, 37, 47, 0.95) 100%);
-            border-radius: 20px;
+            border-radius: 25px;
             border: 1px solid rgba(255,255,255,0.08);
-            padding: 40px 50px;
+            padding: 40px 30px;
             box-shadow: 0 30px 60px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.1);
             backdrop-filter: blur(10px);
             
-            /* 橫式佈局關鍵 */
             display: flex;
-            flex-direction: row;
+            flex-direction: column;
             align-items: center;
-            gap: 50px; /* 標題與按鈕的間距 */
-            max-width: 95vw;
-            max-height: 90vh;
+            gap: 30px; 
+            width: 100%;
+            max-width: 400px; /* 適合直式手機寬度 */
             box-sizing: border-box;
         }
 
-        /* 標題區：靠左對齊 */
-        .title-area { margin-bottom: 0; text-align: left; }
+        /* 標題區：改為置中 */
+        .title-area { text-align: center; }
         .title-area h1 { 
-            font-size: 4rem; color: var(--premium-gold); margin: 0; 
-            letter-spacing: 8px; font-weight: 300; 
+            font-size: 3.5rem; color: var(--premium-gold); margin: 0; 
+            letter-spacing: 12px; font-weight: 300; 
             text-shadow: 0 5px 15px rgba(212, 175, 55, 0.2);
             font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
-            white-space: nowrap; /* 確保標題不換行 */
         }
 
-        /* 按鈕區：改為 2x2 網格，充分利用橫向空間 */
+        /* 按鈕區：改為單列垂直堆疊，更好按 */
         .button-group { 
-            display: grid; 
-            grid-template-columns: repeat(2, 1fr); 
+            display: flex;
+            flex-direction: column;
             gap: 15px; 
-            width: auto; 
-            min-width: 480px; /* 確保按鈕有足夠寬度 */
-            margin: 0;
+            width: 100%;
         }
 
-        /* 未開放模式按鈕 (低調線框) */
+        /* 基礎按鈕樣式 */
+        .menu-btn {
+            width: 100%;
+            padding: 18px 10px;
+            border-radius: 15px;
+            font-size: 1.1rem;
+            letter-spacing: 2px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+            text-decoration: none;
+            box-sizing: border-box;
+        }
+
+        /* 未開放模式按鈕 */
         .menu-btn.dev-btn {
             background: rgba(0,0,0,0.2);
             border: 1px solid rgba(255,255,255,0.1);
             color: var(--text-muted);
-            padding: 15px 10px;
-            font-size: 1.05rem;
-            border-radius: 15px; /* 配合橫向，稍微縮小圓角 */
             cursor: not-allowed; 
-            transition: all 0.3s ease;
-            letter-spacing: 2px;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
         }
 
-        .menu-btn.dev-btn:hover {
-            background: rgba(0,0,0,0.4);
-            border-color: rgba(255,255,255,0.15);
-        }
-
-        /* 主要行動按鈕 (香檳金漸層) */
+        /* 主要行動按鈕 (四人開桌) */
         .menu-btn.primary-btn {
             background: linear-gradient(135deg, #d4af37, #b5952f);
             color: #111;
-            padding: 15px 10px;
-            font-size: 1.2rem;
             border: none;
-            border-radius: 15px;
             cursor: pointer;
-            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
             font-weight: bold;
-            letter-spacing: 2px;
             box-shadow: 0 8px 20px rgba(212, 175, 55, 0.25);
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
         }
 
         .menu-btn.primary-btn:hover {
-            transform: translateY(-3px) scale(1.02); 
+            transform: scale(1.03); 
             box-shadow: 0 12px 25px rgba(212, 175, 55, 0.4);
         }
 
         .menu-btn span { 
             font-size: 0.8rem; display: block; 
             font-weight: normal; opacity: 0.7; 
-            margin-top: 5px; letter-spacing: 1px;
+            margin-top: 5px; letter-spacing: 1px; 
         }
         
-        .menu-btn.primary-btn span {
-            color: #333;
-            opacity: 0.9;
-            font-weight: 500;
-        }
-        
-        /* 針對較小螢幕的手機微調 */
-        @media screen and (max-width: 750px) {
-            .menu-card { padding: 25px; gap: 20px; }
-            .title-area h1 { font-size: 2.5rem; }
-            .button-group { min-width: 380px; gap: 10px; }
-            .menu-btn { font-size: 0.95rem; padding: 12px 5px; }
-            .menu-btn span { font-size: 0.7rem; }
+        /* 針對窄螢幕微調 */
+        @media screen and (max-width: 380px) {
+            .title-area h1 { font-size: 2.8rem; letter-spacing: 8px; }
+            .menu-card { padding: 30px 20px; }
+            .menu-btn { padding: 15px 5px; font-size: 1rem; }
         }
     </style>
 </head>
 <body>
 
-    <div id="orientation-overlay">
-        <div style="font-size: 4rem; transform: rotate(-90deg); margin-bottom: 20px;">📱</div>
-        <h2>請旋轉裝置為橫向</h2>
-        <p>橋牌需要較寬的視角，請開啟螢幕旋轉功能</p>
-    </div>
-
     <div class="main-menu">
         <div class="menu-card">
             <div class="title-area">
-                <h1>橋牌！！</h1>
+                <h1>橋牌</h1>
             </div>
 
             <div class="button-group">
-                <button class="menu-btn dev-btn" onclick="alert('一人模式正在精心打造中，敬請期待！')">
-                    一人模式 (開發中) <span>練習 & AI 對弈</span>
-                </button>
-                <button class="menu-btn dev-btn" onclick="alert('二人模式正在精心打造中，敬請期待！')">
-                    二人模式 (開發中) <span>快速配對隊友</span>
-                </button>
-                <button class="menu-btn dev-btn" onclick="alert('三人模式正在精心打造中，敬請期待！')">
-                    三人模式 (開發中) <span>特殊挑戰規則</span>
-                </button>
-                
                 <button class="menu-btn primary-btn" onclick="goToGame(4)">
-                    四人開桌 <span>標準 2 vs 2 連線對抗</span>
+                    四人開桌 <span>標準 2 vs 2 連線對戰</span>
+                </button>
+
+                <button class="menu-btn dev-btn" onclick="alert('一人模式正在精心打造中！')">
+                    一人模式 <span>練習 & AI 對弈</span>
+                </button>
+                <button class="menu-btn dev-btn" onclick="alert('二人模式正在精心打造中！')">
+                    二人模式 <span>快速配對隊友</span>
+                </button>
+                <button class="menu-btn dev-btn" onclick="alert('三人模式正在精心打造中！')">
+                    三人模式 <span>特殊挑戰規則</span>
                 </button>
             </div>
         </div>
