@@ -4,10 +4,14 @@
     --best-glow: #ffeb3b;
     --flame-red: #ff4500;
     --flame-orange: #ff8c00;
+    --premium-gold: #d4af37;
+    --premium-dark: #2c3e50;
+    --premium-bg: #1a252f;
+    --text-soft: #ecf0f1;
+    --text-muted: #95a5a6;
 }
 
-/* 覆蓋 main.css 中的 body 設定 (如果有衝突的話) */
-body, html { overflow: hidden; }
+body, html { overflow: hidden; background-color: #15202b; }
 
 /* 導正玩家位置的 Grid 佈局 */
 .table-container { 
@@ -15,7 +19,7 @@ body, html { overflow: hidden; }
     grid-template-columns: 200px 1fr 200px; 
     grid-template-rows: 150px 1fr 180px; 
     width: 100vw; height: 100vh; 
-    background: radial-gradient(circle, var(--bridge-green) 0%, #153610 100%); 
+    background: radial-gradient(circle, #1a5d1a 0%, #112a10 100%); 
 }
 
 .player-slot { position: relative; display: flex; flex-direction: column; justify-content: center; align-items: center; }
@@ -23,10 +27,9 @@ body, html { overflow: hidden; }
 /* 基礎名稱框 */
 .player-info { 
     background: rgba(0,0,0,0.7); padding: 8px 15px; border-radius: 8px; 
-    font-size: 0.9rem; border: 1px solid var(--btn-gold); 
+    font-size: 0.9rem; border: 1px solid var(--premium-gold); 
     margin: 10px; text-align: center; z-index: 10;
-    color: var(--text-white);
-    transition: all 0.5s ease;
+    color: var(--text-soft); transition: all 0.5s ease;
 }
 
 /* 火焰燃燒動畫特效 */
@@ -34,8 +37,7 @@ body, html { overflow: hidden; }
     border-color: var(--flame-red);
     animation: flame-burn 1.5s infinite alternate;
     box-shadow: 0 0 10px var(--flame-red), 0 0 20px var(--flame-orange);
-    font-weight: bold;
-    transform: scale(1.1);
+    font-weight: bold; transform: scale(1.1);
 }
 
 @keyframes flame-burn {
@@ -46,10 +48,10 @@ body, html { overflow: hidden; }
 
 .trick-pile {
     position: absolute; width: 45px; height: 65px;
-    background: #2c3e50; border: 2px solid var(--btn-gold);
+    background: #2c3e50; border: 2px solid var(--premium-gold);
     border-radius: 5px; display: none;
     justify-content: center; align-items: center;
-    font-weight: bold; color: var(--btn-gold);
+    font-weight: bold; color: var(--premium-gold);
     box-shadow: 2px 2px 8px rgba(0,0,0,0.5);
     font-size: 1.3rem; z-index: 5;
 }
@@ -63,7 +65,6 @@ body, html { overflow: hidden; }
 .pos-left  { grid-column: 1; grid-row: 2; }
 .pos-right  { grid-column: 3; grid-row: 2; }
 
-/* 中間四張牌：加大間距至 30px */
 .center-field { 
     grid-column: 2; grid-row: 2; 
     border: 2px dashed rgba(255,255,255,0.1); 
@@ -72,148 +73,231 @@ body, html { overflow: hidden; }
     position: relative; gap: 30px; 
 }
 
-/* 手牌區 */
 .hand-area { display: flex; justify-content: center; width: 100%; height: 120px; padding-bottom: 20px; }
 
+/* --- 撲克牌設定 --- */
 .card { 
-    width: 60px; height: 90px; background: var(--card-white); border-radius: 5px; 
+    width: 60px; height: 90px; background: #ffffff; border-radius: 5px; 
     margin-left: -20px; box-shadow: 2px 2px 6px rgba(0,0,0,0.4); color: black; 
     display: flex; flex-direction: column; padding: 6px; font-weight: bold; 
     cursor: pointer; user-select: none; position: relative;
-    transition: transform 0.3s, opacity 0.3s;
+    transition: transform 0.3s, opacity 0.3s, filter 0.3s;
 }
 .card:first-child { margin-left: 0; }
 .card:hover:not(.disabled) { transform: translateY(-30px) scale(1.15); z-index: 100 !important; }
 .card.red { color: #e74c3c; }
 
-/* 出牌後的灰階過濾：領頭牌判定結束後會由 JS 移除此 class */
-.card.disabled { opacity: 0.3; filter: grayscale(90%); cursor: not-allowed; }
+.card.disabled { 
+    opacity: 0.8; 
+    background-color: #d1d1d1; 
+    cursor: not-allowed; 
+    pointer-events: none; 
+}
 
 .best-card { border: 3px solid var(--best-glow); box-shadow: 0 0 20px var(--best-glow); z-index: 50; }
 .table-card::after {
     content: attr(data-playername); position: absolute; top: -35px; left: 50%; transform: translateX(-50%);
-    background: rgba(0,0,0,0.85); color: var(--btn-gold); padding: 4px 10px; border-radius: 5px; font-size: 0.75rem;
-    white-space: nowrap; opacity: 0; transition: opacity 0.2s; pointer-events: none; border: 1px solid var(--btn-gold);
+    background: rgba(0,0,0,0.85); color: var(--premium-gold); padding: 4px 10px; border-radius: 5px; font-size: 0.75rem;
+    white-space: nowrap; opacity: 0; transition: opacity 0.2s; pointer-events: none; border: 1px solid var(--premium-gold);
 }
 .table-card:hover::after { opacity: 1; }
 .card.flying { transition: all 0.8s ease-in-out; position: fixed; z-index: 1000 !important; pointer-events: none; }
 
+/* ========================================================= */
+/* --- 狀態列與完美計分板 (Status Bar) --- */
+/* ========================================================= */
 .status-bar { 
     position: absolute; top: 15px; left: 15px; background: rgba(0,0,0,0.75); padding: 15px; 
-    border-radius: 8px; font-size: 0.95rem; z-index: 100; line-height: 1.7; border-left: 5px solid var(--btn-gold);
-    color: var(--text-white);
-}
-.score-tag { color: var(--btn-gold); font-weight: bold; }
-.waiting-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1000; color: white;}
-
-/* --- 喊牌階段介面 (Bidding Box) --- */
-#bidding-modal {
-    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-    background: linear-gradient(145deg, var(--premium-dark) 0%, var(--premium-bg) 100%);
-    border: 2px solid var(--premium-gold); border-radius: 15px;
-    padding: 20px 30px; z-index: 2000; color: white; text-align: center;
-    box-shadow: 0 15px 40px rgba(0,0,0,0.8);
-    transition: all 0.8s cubic-bezier(0.25, 0.8, 0.25, 1); /* 飛行動畫的曲線 */
-    display: none; /* 預設隱藏 */
+    border-radius: 8px; font-size: 0.95rem; z-index: 100; border-left: 5px solid var(--premium-gold);
+    color: var(--text-soft); min-width: 220px;
 }
 
-/* 喊完牌後飛向左上角的動畫 Class */
-#bidding-modal.fly-to-top-left {
-    top: 20px; left: 20px;
-    transform: translate(0, 0) scale(0.2);
-    opacity: 0;
-    pointer-events: none;
-}
-
-#bidding-modal h3 { margin: 0 0 10px 0; color: var(--premium-gold); letter-spacing: 2px; }
-#bidding-history { font-size: 0.9rem; margin-bottom: 15px; color: var(--text-soft); min-height: 20px; }
-
-/* 5x7 喊牌按鈕網格 */
-.bid-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-bottom: 15px; }
-.bid-btn { 
-    padding: 8px 5px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.2); 
-    color: white; border-radius: 5px; cursor: pointer; font-size: 0.9rem; font-weight: bold; transition: 0.2s;
-}
-.bid-btn:disabled { opacity: 0.2; cursor: not-allowed; border-color: transparent; }
-.bid-btn:hover:not(:disabled) { background: var(--premium-gold); color: #000; border-color: var(--premium-gold); transform: scale(1.1); }
-
-.pass-btn { width: 100%; background: #c0392b; border: none; padding: 10px; font-size: 1rem; }
-.pass-btn:hover:not(:disabled) { background: #e74c3c; color: white; transform: scale(1.05); }
-
-/* 左上角合約顯示區 */
+/* 左上角狀態列的三層分隔設計 */
 #contract-display {
     color: var(--premium-gold); font-weight: bold; font-size: 1.05rem;
-    margin-bottom: 5px; padding-bottom: 5px; border-bottom: 1px dashed rgba(212, 175, 55, 0.5);
-    display: none; /* 喊牌結束後才顯示 */
+    margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px dashed rgba(212, 175, 55, 0.5);
 }
 
+#score-display-teams {
+    margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px dashed rgba(212, 175, 55, 0.5);
+    line-height: 1.6; font-size: 0.95rem;
+}
+
+#turn-display {
+    font-weight: bold; color: var(--text-soft); font-size: 0.95rem;
+}
+
+.score-tag { color: var(--premium-gold); font-weight: bold; }
+.waiting-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1000; color: white;}
+
+/* ========================================================= */
+/* --- 尊爵喊牌階段介面 (Bidding Box) --- */
+/* ========================================================= */
+#bidding-modal {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    background: linear-gradient(145deg, rgba(44, 62, 80, 0.95) 0%, rgba(26, 37, 47, 0.98) 100%);
+    border: 1px solid rgba(212, 175, 55, 0.3); border-radius: 20px;
+    padding: 30px 40px; z-index: 2000; color: var(--text-soft); text-align: center;
+    box-shadow: 0 25px 50px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255,255,255,0.05);
+    backdrop-filter: blur(15px);
+    transition: all 0.8s cubic-bezier(0.25, 0.8, 0.25, 1);
+    display: none;
+}
+
+#bidding-modal.fly-to-top-left {
+    top: 20px; left: 20px;
+    transform: translate(0, 0) scale(0.15);
+    opacity: 0; pointer-events: none;
+}
+
+#bidding-title { margin: 0 0 10px 0; color: var(--premium-gold); letter-spacing: 2px; font-weight: 300; font-size: 1.5rem; }
+#bidding-history { font-size: 0.95rem; margin-bottom: 20px; color: var(--text-muted); min-height: 20px; }
+
+.bid-grid {
+    display: grid;
+    grid-template-rows: repeat(5, 1fr);     
+    grid-template-columns: repeat(7, 1fr);  
+    grid-auto-flow: column;                 
+    gap: 8px; margin-bottom: 20px;
+}
+
+.bid-btn {
+    padding: 10px 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+    color: white; border-radius: 8px; cursor: pointer; font-size: 1rem; font-weight: bold; transition: all 0.2s;
+}
+.bid-btn:disabled { opacity: 0.15; filter: grayscale(100%); cursor: not-allowed; border-color: transparent; }
+.bid-btn:hover:not(:disabled) { 
+    background: var(--premium-gold); color: #111; 
+    border-color: var(--premium-gold); transform: scale(1.1); 
+    box-shadow: 0 5px 15px rgba(212, 175, 55, 0.4); 
+}
+.bid-btn span { margin-left: 2px; }
+
+.pass-btn { 
+    width: 100%; background: linear-gradient(135deg, #c0392b, #8e44ad); 
+    border: none; padding: 12px; font-size: 1.1rem; border-radius: 10px; 
+    color: white; font-weight: bold; letter-spacing: 2px; transition: all 0.3s; 
+    box-shadow: 0 5px 15px rgba(192, 57, 43, 0.3);
+}
+.pass-btn:hover:not(:disabled) { transform: translateY(-3px); box-shadow: 0 8px 20px rgba(192, 57, 43, 0.5); }
+.pass-btn:disabled { background: #333; color: #555; box-shadow: none; filter: grayscale(100%);}
+
+/* ========================================================= */
+/* --- 勝利結算特效畫面 (Victory Screen) --- */
+/* ========================================================= */
+#victory-overlay {
+    position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+    background: rgba(0, 0, 0, 0.85); 
+    display: none; justify-content: center; align-items: center;
+    z-index: 3000; backdrop-filter: blur(8px);
+    opacity: 0; transition: opacity 1s ease-in-out;
+}
+
+#victory-overlay.show { display: flex; opacity: 1; }
+
+.victory-card {
+    background: linear-gradient(145deg, var(--premium-dark) 0%, var(--premium-bg) 100%);
+    border: 2px solid var(--premium-gold); border-radius: 20px;
+    padding: 50px 70px; text-align: center; color: white;
+    box-shadow: 0 0 80px rgba(212, 175, 55, 0.4), inset 0 1px 0 rgba(255,255,255,0.1);
+    transform: scale(0.5) translateY(100px); 
+    opacity: 0;
+    animation: popInAndGlow 1.2s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+@keyframes popInAndGlow {
+    0% { transform: scale(0.5) translateY(100px); opacity: 0; }
+    70% { transform: scale(1.05) translateY(-10px); opacity: 1; box-shadow: 0 0 100px rgba(212, 175, 55, 0.8); }
+    100% { transform: scale(1) translateY(0); opacity: 1; box-shadow: 0 0 60px rgba(212, 175, 55, 0.5); }
+}
+
+#victory-title { 
+    font-size: 3.5rem; color: var(--premium-gold); margin: 0 0 15px 0; 
+    text-shadow: 0 0 20px rgba(212, 175, 55, 0.8); letter-spacing: 5px;
+}
+#victory-team-names { font-size: 2.2rem; margin: 0 0 30px 0; letter-spacing: 2px; }
+
+#victory-stats div {
+    margin: 8px 0;
+    font-size: 1.15rem;
+    letter-spacing: 1px;
+    color: var(--text-soft);
+}
+
+#victory-stats b {
+    margin: 0 5px;
+}
+
+/* --- 勝利面板按鈕與狀態樣式 --- */
+.victory-buttons {
+    display: flex; justify-content: center; gap: 20px; margin-top: 25px;
+}
+.btn-action {
+    padding: 12px 30px; border-radius: 30px; cursor: pointer; 
+    font-weight: bold; font-size: 1.1rem; transition: all 0.3s; letter-spacing: 1px;
+}
+.btn-again {
+    background: linear-gradient(135deg, var(--premium-gold), #b5952f);
+    color: #111; border: none; box-shadow: 0 5px 15px rgba(212, 175, 55, 0.3);
+}
+.btn-again:hover:not(:disabled) { transform: translateY(-3px); box-shadow: 0 10px 25px rgba(212, 175, 55, 0.6); }
+.btn-again:disabled { background: #555; color: #aaa; cursor: not-allowed; box-shadow: none; transform: none; }
+
+.btn-lobby {
+    background: transparent; color: var(--premium-gold);
+    border: 2px solid var(--premium-gold);
+}
+.btn-lobby:hover { background: rgba(212, 175, 55, 0.1); transform: translateY(-3px); }
+
+#vote-status-display span { margin: 0 10px; display: inline-block; }
 
 
-
-
-
-
-
-
-
-
-
-
-/* 📱 手機版 (橫式) 遊戲畫面響應式優化 */
+/* ========================================================= */
+/* 📱 手機版 (橫向) 遊戲畫面響應式優化 (RWD) */
+/* ========================================================= */
 @media screen and (max-width: 900px), screen and (max-height: 500px) {
-    /* 1. 縮減四周玩家佔用的空間 */
     .table-container { 
         grid-template-columns: 100px 1fr 100px; 
         grid-template-rows: 90px 1fr 110px; 
     }
     
-    /* 2. 縮小玩家標籤 */
-    .player-info { 
-        padding: 5px 8px; 
-        font-size: 0.75rem; 
-        margin: 5px; 
-    }
+    .player-info { padding: 5px 8px; font-size: 0.75rem; margin: 5px; }
     
-    /* 3. 縮小撲克牌尺寸 */
     .card { 
-        width: 42px; 
-        height: 65px; 
-        margin-left: -20px; /* 調整卡片重疊幅度 */
-        padding: 3px; 
-        font-size: 0.85rem; 
-        border-radius: 4px;
+        width: 42px; height: 65px; margin-left: -20px; 
+        padding: 3px; font-size: 0.85rem; border-radius: 4px;
     }
-    
-    /* 4. 手機上懸停浮起幅度減少，避免超出畫面 */
-    .card:hover:not(.disabled) { 
-        transform: translateY(-15px) scale(1.1); 
-    }
-    
-    /* 5. 桌面中間四張牌的間距縮小 */
+    .card:hover:not(.disabled) { transform: translateY(-15px) scale(1.1); }
     .center-field { gap: 15px; margin: 5px; }
     
-    /* 6. 縮小計分板與狀態列 */
-    .status-bar { 
-        top: 5px; left: 5px; 
-        padding: 8px 12px; 
-        font-size: 0.75rem; 
-        border-left-width: 3px;
-    }
+    .status-bar { top: 5px; left: 5px; padding: 8px 12px; font-size: 0.75rem; border-left-width: 3px; }
     
-    /* 7. 縮小吃墩背卡 */
-    .trick-pile { 
-        width: 30px; height: 45px; 
-        font-size: 1rem; 
-    }
+    .trick-pile { width: 30px; height: 45px; font-size: 1rem; }
     .pile-bottom { bottom: 85px; right: 10px; }
     .pile-top { top: 10px; right: 10px; }
     .pile-left { top: 10px; left: 10px; }
     .pile-right { top: 10px; right: 10px; }
     
-    /* 8. 縮小桌面上牌的玩家名字提示 */
-    .table-card::after { 
-        font-size: 0.65rem; 
-        padding: 2px 6px; 
-        top: -25px;
+    .table-card::after { font-size: 0.65rem; padding: 2px 6px; top: -25px; }
+
+    #bidding-modal { 
+        padding: 15px 20px; border-radius: 15px; 
+        width: 95vw; max-width: 600px; box-sizing: border-box;
     }
+    #bidding-title { font-size: 1.2rem; margin-bottom: 5px; }
+    #bidding-history { font-size: 0.8rem; margin-bottom: 10px; }
+    .bid-grid { gap: 5px; margin-bottom: 10px; }
+    .bid-btn { padding: 8px 4px; font-size: 0.9rem; border-radius: 6px; }
+    .pass-btn { padding: 10px; font-size: 1rem; border-radius: 8px; }
+
+    /* 手機版勝利畫面縮放 */
+    .victory-card { padding: 30px 40px; width: 85vw; box-sizing: border-box; }
+    #victory-title { font-size: 2.5rem; }
+    #victory-team-names { font-size: 1.5rem; margin-bottom: 20px; }
+    #victory-stats { font-size: 1rem; padding: 15px; }
+    
+    /* 手機版按鈕改為上下排列 */
+    .victory-buttons { flex-direction: column; gap: 12px; }
+    .btn-action { width: 100%; box-sizing: border-box; }
+    #vote-status-display span { display: block; margin: 3px 0; }
 }

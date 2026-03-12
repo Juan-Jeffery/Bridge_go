@@ -10,9 +10,8 @@ const gameRef = database.ref('games/' + roomId);
 let myRole = ""; 
 let currentPlayersData = {}; 
 let isRendering = false;
-let currentBiddingState = null; // 儲存目前的喊牌狀態
+let currentBiddingState = null; 
 
-// 斷線清理防護
 window.onbeforeunload = function() { 
     if (myRole) { playersRef.child(myRole).remove(); } 
 };
@@ -30,7 +29,9 @@ function initializeGame() {
         if (myRole) {
             database.ref().off('value'); 
             document.getElementById('loading').style.display = 'none';
-            document.getElementById('my-name-display').innerText = myLocalName;
+            
+            // 【修復 Bug】：因為 HTML 把 my-name-display 刪掉了，所以這裡拿掉避免報錯
+            // document.getElementById('my-name-display').innerText = myLocalName; 
             
             playersRef.child(myRole).onDisconnect().remove();
             startListening(roomId);
@@ -44,30 +45,28 @@ function initializeGame() {
     });
 }
 
-// --- 初始化發牌與喊牌設定 ---
 function setupNewDeck() {
     const suits = ['♠', '♥', '♦', '♣'], values = ['A', 'K', 'Q', 'J', '10', '9', '8', '7', '6', '5', '4', '3', '2'];
     let deck = []; suits.forEach(s => values.forEach(v => deck.push({s, v})));
     deck.sort(() => Math.random() - 0.5);
     gameRef.child('hands').set({ south: deck.slice(0, 13), west: deck.slice(13, 26), north: deck.slice(26, 39), east: deck.slice(39, 52) });
     
-    // 初始化計分與喊牌引擎
     gameRef.child('scores').set({ ns: 0, ew: 0 });
     gameRef.child('personalScores').set({ south: 0, west: 0, north: 0, east: 0 });
     gameRef.child('bidding').set({
         status: "active",
-        turn: "south",      // 發牌者(南家)先喊
-        currentBid: null,   // 最高出價 { level: 1, suit: '♠', player: 'south', name: '玩家A' }
-        passCount: 0,       // 連續 pass 次數
-        history: [],        // 喊牌紀錄文字
-        contract: null      // 最終合約
+        turn: "south",
+        currentBid: null,
+        passCount: 0,
+        history: [],
+        contract: null
     });
 }
 
 function startListening(rid) {
     playersRef.get().then(snap => { 
         currentPlayersData = snap.val() || {}; 
-        updateScoreboardUI(currentPlayersData); 
+        updateScoreboardUI({ ns: 0, ew: 0 }); 
     });
     
     playersRef.on('value', snap => {
@@ -85,32 +84,100 @@ function startListening(rid) {
         updatePlayerLabels(currentPlayersData);
     });
     
-    gameRef.child('scores').on('value', snap => { updateScoreboardUI(snap.val() || { ns: 0, ew: 0 }); });
+    gameRef.child('scores').on('value', snap => { 
+        const scores = snap.val() || { ns: 0, ew: 0 };
+        updateScoreboardUI(scores); 
+        checkGameEnd(scores); // 檢查提早結算
+    });
+    // --- 【新增】監聽結算畫面的「再來一場」投票狀態 ---
+    gameRef.child('vote').on('value', snap => {
+        const votes = snap.val() || {};
+        
+        // 只有在結算畫面時才處理這個邏輯
+        if (currentBiddingState && currentBiddingState.status === "finished") {
+            let readyCount = 0;
+            let statusHtml = "";
+            const roles = ['north', 'south', 'west', 'east'];
+            
+            roles.forEach(r => {
+                const pName = currentPlayersData[r] ? currentPlayersData[r].name : "玩家";
+                const isReady = votes[r] === 'play_again';
+                if (isReady) readyCount++;
+                statusHtml += `<span>${pName}: ${isReady ? '<b style="color:#2ecc71;">✅ 已準備</b>' : '⏳ 思考中...'}</span>`;
+            });
+            
+            const voteDisplay = document.getElementById('vote-status-display');
+            if(voteDisplay) voteDisplay.innerHTML = statusHtml;
+
+            // 如果 4 個人都按下再來一局，由南家負責發起新牌局
+            if (readyCount === 4 && myRole === 'south') {
+                setupNewDeck();
+                gameRef.child('vote').remove(); // 清空投票紀錄
+            }
+        }
+    });
+    
     gameRef.child('personalScores').on('value', snap => { updatePersonalTrickPiles(snap.val() || {}); });
     gameRef.child('hands/' + myRole).on('value', snap => { if (snap.val()) renderHand(snap.val()); });
     
     // --- 監聽喊牌引擎 ---
-    gameRef.child('bidding').on('value', snap => {
+    gameRef.child('bidding').on('value', async snap => {
         const biddingData = snap.val();
         if (biddingData) {
+            const previousStatus = currentBiddingState ? currentBiddingState.status : "active";
             currentBiddingState = biddingData;
+
+            // 【關鍵位置】：當偵測到新的一局 (active) 時，立刻重置 UI 狀態
+            if (biddingData.status === "active") {
+                // 1. 隱藏勝利結算畫面
+                const victoryOverlay = document.getElementById('victory-overlay');
+                if (victoryOverlay) victoryOverlay.classList.remove('show');
+                
+                // 2. 重置判定旗標與計分板標題
+                window.victoryTriggered = false;
+                updateContractUI(null);
+                
+                // 3. 恢復「再來一場」按鈕的狀態
+                const btnAgain = document.getElementById('btn-again');
+                if (btnAgain) { 
+                    btnAgain.disabled = false; 
+                    btnAgain.innerText = "再來一場"; 
+                }
+
+                // 4. 重置投票狀態 (顯示思考中)
+                const voteDisplay = document.getElementById('vote-status-display');
+                if (voteDisplay) voteDisplay.innerHTML = "";
+            }
+
+            // 執行渲染喊牌面板
             renderBiddingUI(biddingData);
+
+            // 如果狀態從「喊牌中」切換為「喊牌結束」
+            if (previousStatus !== "finished" && biddingData.status === "finished") {
+                // 解鎖手牌，解除灰色濾鏡
+                const hSnap = await gameRef.child('hands/' + myRole).get();
+                if (hSnap.exists()) renderHand(hSnap.val());
+                
+                // 刷新計分板以顯示目標墩數
+                gameRef.child('scores').get().then(sSnap => {
+                    updateScoreboardUI(sSnap.val() || { ns: 0, ew: 0 });
+                });
+            }
         }
     });
 
-    // --- 監聽打牌輪次 ---
     gameRef.child('turn').on('value', snap => {
         const t = snap.val();
-        // 只有在喊牌結束後，才顯示打牌輪次
+        const turnDisplay = document.getElementById('turn-name-display');
+        
         if (t && currentPlayersData[t] && (!currentBiddingState || currentBiddingState.status === "finished")) {
-            document.getElementById('turn-name-display').innerText = (t === myRole) ? `⭐ ${currentPlayersData[t].name}` : currentPlayersData[t].name;
+            turnDisplay.innerText = (t === myRole) ? `⭐ ${currentPlayersData[t].name} (你)` : currentPlayersData[t].name;
             updateFlameEffect(t);
         } else {
-            document.getElementById('turn-name-display').innerText = "喊牌中...";
+            turnDisplay.innerText = "競標中...";
         }
     });
 
-    // 監聽桌面出牌狀態 (打牌階段)
     gameRef.child('table').on('value', async (snap) => {
         const center = document.getElementById('table-center'); const tableCards = snap.val();
         const hSnap = await gameRef.child('hands/' + myRole).get();
@@ -121,23 +188,20 @@ function startListening(rid) {
         center.innerHTML = ""; 
         const cardsArray = Object.values(tableCards);
         const leadSuit = cardsArray[0].s; 
-        // 判斷王牌 (如果有)
         const trumpSuit = (currentBiddingState && currentBiddingState.contract && currentBiddingState.contract.suit !== 'NT') ? currentBiddingState.contract.suit : null;
-        
         const vals = {'A':14, 'K':13, 'Q':12, 'J':11, '10':10, '9':9, '8':8, '7':7, '6':6, '5':5, '4':4, '3':3, '2':2};
         
-        // --- 修正橋牌吃墩判定邏輯 (含王牌) ---
         let bestCard = cardsArray[0]; 
         cardsArray.forEach(c => { 
             let isCurrentTrump = (c.s === trumpSuit);
             let isBestTrump = (bestCard.s === trumpSuit);
             
             if (isCurrentTrump && !isBestTrump) {
-                bestCard = c; // 第一張王牌直接吃掉非王牌
+                bestCard = c; 
             } else if (isCurrentTrump && isBestTrump) {
-                if (vals[c.v] > vals[bestCard.v]) bestCard = c; // 都是王牌比大小
+                if (vals[c.v] > vals[bestCard.v]) bestCard = c; 
             } else if (!isCurrentTrump && !isBestTrump && c.s === leadSuit) {
-                if (vals[c.v] > vals[bestCard.v]) bestCard = c; // 沒王牌時，比領頭花色大小
+                if (vals[c.v] > vals[bestCard.v]) bestCard = c; 
             }
         });
         
@@ -154,46 +218,35 @@ function startListening(rid) {
     });
 }
 
-// ==========================================
-// 喊牌引擎 (Bidding System)
-// ==========================================
-
 const suitRanks = { '♣': 1, '♦': 2, '♥': 3, '♠': 4, 'NT': 5 };
 
-// 生成喊牌按鈕與控制介面
 function renderBiddingUI(biddingData) {
+    if (biddingData.status !== "finished") updateContractUI(null);
+
     const modal = document.getElementById('bidding-modal');
     const historyDiv = document.getElementById('bidding-history');
     const container = document.getElementById('bid-buttons-container');
     const passBtn = document.getElementById('btn-pass');
     
-    // 如果喊牌結束，觸發飛行動畫
     if (biddingData.status === "finished") {
         modal.classList.add('fly-to-top-left');
-        document.getElementById('contract-display').style.display = "block";
         updateContractUI(biddingData.contract);
-        
-        // 動畫結束後徹底隱藏
         setTimeout(() => { modal.style.display = "none"; }, 800);
         return;
     }
 
-    // 顯示喊牌區
     modal.style.display = "block";
     modal.classList.remove('fly-to-top-left');
 
-    // 更新歷史紀錄
     let historyText = biddingData.history ? biddingData.history.slice(-4).join(' ➔ ') : "請開始出價";
     if (biddingData.currentBid) {
         historyText += `<br><span style="color:var(--premium-gold);font-size:1.1rem;">目前最高: ${biddingData.currentBid.level}${biddingData.currentBid.suit} (${biddingData.currentBid.name})</span>`;
     }
     historyDiv.innerHTML = historyText;
 
-    // 判斷是否輪到自己
     const isMyTurn = (biddingData.turn === myRole);
     document.getElementById('bidding-title').innerText = isMyTurn ? "🌟 輪到你喊牌了！" : `等待 ${currentPlayersData[biddingData.turn].name} 喊牌...`;
     
-    // 渲染 35 個喊牌按鈕
     container.innerHTML = "";
     const suits = ['♣', '♦', '♥', '♠', 'NT'];
     for (let level = 1; level <= 7; level++) {
@@ -202,7 +255,6 @@ function renderBiddingUI(biddingData) {
             btn.className = 'bid-btn';
             btn.innerHTML = `${level}<span style="color:${(suit==='♥'||suit==='♦')?'#e74c3c':'white'}">${suit}</span>`;
             
-            // 規則檢查：出價必須比目前的更高
             let isDisabled = !isMyTurn;
             if (biddingData.currentBid) {
                 const currentLevel = biddingData.currentBid.level;
@@ -216,12 +268,9 @@ function renderBiddingUI(biddingData) {
             container.appendChild(btn);
         });
     }
-    
-    // 處理 Pass 按鈕
     passBtn.disabled = !isMyTurn;
 }
 
-// 玩家送出喊牌或 Pass
 function submitBid(level, suit) {
     if (currentBiddingState.turn !== myRole) return;
     
@@ -233,32 +282,26 @@ function submitBid(level, suit) {
         newHistory.push(`${myLocalName}: Pass`);
         let newPassCount = currentBiddingState.passCount + 1;
         
-        // 判斷是否結標 (如果有喊過牌且連續3人Pass，或第一輪連續4人Pass重新發牌)
         if (currentBiddingState.currentBid && newPassCount === 3) {
-            // 喊牌結束！計算合約
             finishBidding(currentBiddingState.currentBid);
         } else if (!currentBiddingState.currentBid && newPassCount === 4) {
-            // 4家都Pass，重新洗牌
             alert("四家 Pass，重新洗牌發牌！");
             setupNewDeck();
         } else {
-            // 繼續 Pass 給下一家
             gameRef.child('bidding').update({ turn: nextTurn, passCount: newPassCount, history: newHistory });
         }
     } else {
-        // 出價
         const bidStr = `${level}${suit}`;
         newHistory.push(`${myLocalName}: ${bidStr}`);
         gameRef.child('bidding').update({
             turn: nextTurn,
-            passCount: 0, // 只要有人出價，Pass 計數歸零
+            passCount: 0, 
             currentBid: { level: level, suit: suit, player: myRole, name: myLocalName },
             history: newHistory
         });
     }
 }
 
-// 結束喊牌，設定莊家與目標
 function finishBidding(winningBid) {
     const declarer = winningBid.player;
     const team = (declarer === 'south' || declarer === 'north') ? 'NS' : 'EW';
@@ -273,34 +316,41 @@ function finishBidding(winningBid) {
         targetTricks: targetTricks
     };
     
-    // 設定打牌階段：莊家的左手邊先出牌
     const flow = { south: "west", west: "north", north: "east", east: "south" };
     const leadPlayer = flow[declarer];
 
-    // 更新資料庫，觸發飛行動畫與開始打牌
     gameRef.child('bidding').update({ status: "finished", contract: contract });
     gameRef.child('turn').set(leadPlayer); 
 }
 
-// 更新左上角的合約計分板
 function updateContractUI(contract) {
-    if (!contract) return;
-    const nsTarget = contract.team === 'NS' ? contract.targetTricks : 14 - contract.targetTricks;
-    const ewTarget = contract.team === 'EW' ? contract.targetTricks : 14 - contract.targetTricks;
-    
-    document.getElementById('contract-display').innerHTML = 
-        `🏆 最終合約: <span style="font-size:1.3rem;">${contract.level}${contract.suit}</span> (${contract.declarerName} 莊)<br>` +
-        `<span style="font-size:0.85rem; color:var(--text-soft);">南北家目標: <b>${nsTarget}</b> 墩 | 東西家目標: <b>${ewTarget}</b> 墩</span>`;
+    const displayEl = document.getElementById('contract-display');
+    if (!contract) {
+        displayEl.innerHTML = `🏆 狀態: <span style="color:var(--text-muted);">競標中...</span>`;
+        return;
+    }
+    displayEl.innerHTML = 
+        `🏆 最終喊牌: <span style="font-size:1.15rem; color:var(--premium-gold);">${contract.level}${contract.suit}</span> (${contract.declarerName} 莊)`;
 }
 
-// ==========================================
-// 原有打牌邏輯 (微調部分防呆)
-// ==========================================
-
 function updateScoreboardUI(scores = { ns: 0, ew: 0 }) {
-    const getN = (r) => currentPlayersData[r] ? currentPlayersData[r].name : "斷線中...";
+    const getN = (r) => currentPlayersData[r] ? currentPlayersData[r].name : "連線中...";
     const container = document.getElementById('score-display-teams'); if (!container) return;
-    container.innerHTML = `${getN('south')} & ${getN('north')}: <span class="score-tag">${scores.ns || 0}</span> 墩<br>${getN('west')} & ${getN('east')}: <span class="score-tag">${scores.ew || 0}</span> 墩`;
+    
+    let nsTarget = ""; 
+    let ewTarget = "";
+    
+    if (currentBiddingState && currentBiddingState.status === "finished" && currentBiddingState.contract) {
+        const c = currentBiddingState.contract;
+        const nsTricks = c.team === 'NS' ? c.targetTricks : 14 - c.targetTricks;
+        const ewTricks = c.team === 'EW' ? c.targetTricks : 14 - c.targetTricks;
+        nsTarget = ` <span style="font-size:0.85rem; color:var(--text-muted);">(目標 ${nsTricks} 墩)</span>`;
+        ewTarget = ` <span style="font-size:0.85rem; color:var(--text-muted);">(目標 ${ewTricks} 墩)</span>`;
+    }
+    
+    container.innerHTML = 
+        `${getN('south')} & ${getN('north')}: <span class="score-tag">${scores.ns || 0}</span> 墩${nsTarget}<br>` + 
+        `${getN('west')} & ${getN('east')}: <span class="score-tag">${scores.ew || 0}</span> 墩${ewTarget}`;
 }
 
 function updatePersonalTrickPiles(personalScores) {
@@ -313,7 +363,6 @@ function updatePersonalTrickPiles(personalScores) {
 }
 
 function checkTrickWinner(tableCards) {
-    // 贏牌判定已移至 table 監聽器內以支援王牌計算，這裡只負責觸發動畫
     const cardsArray = Object.values(tableCards); const leadSuit = cardsArray[0].s; 
     const trumpSuit = (currentBiddingState && currentBiddingState.contract && currentBiddingState.contract.suit !== 'NT') ? currentBiddingState.contract.suit : null;
     const vals = {'A':14, 'K':13, 'Q':12, 'J':11, '10':10, '9':9, '8':8, '7':7, '6':6, '5':5, '4':4, '3':3, '2':2};
@@ -368,7 +417,6 @@ async function renderHand(hand) {
     sorted.forEach((card, index) => {
         const div = document.createElement('div');
         
-        // 喊牌還沒結束前，所有牌都不能出
         let isBidding = (!currentBiddingState || currentBiddingState.status !== "finished");
         let isDisabled = isBidding || (leadSuit && hasLeadSuit && card.s !== leadSuit);
         
@@ -431,6 +479,111 @@ function updateFlameEffect(currentTurnRole) {
     const targetEl = document.getElementById(`label-${posNames[turnIdx]}`);
     if(targetEl) targetEl.classList.add('active-turn');
 }
+
+// ==========================================
+// 勝利結算系統
+// ==========================================
+
+function checkGameEnd(scores) {
+    const totalTricks = (scores.ns || 0) + (scores.ew || 0);
+    
+    if (!currentBiddingState || !currentBiddingState.contract) return;
+
+    const c = currentBiddingState.contract;
+    const nsTricks = scores.ns || 0;
+    const ewTricks = scores.ew || 0;
+
+    let isGameOver = false;
+
+    if (c.team === 'NS') {
+        if (nsTricks >= c.targetTricks || ewTricks >= (14 - c.targetTricks)) {
+            isGameOver = true;
+        }
+    } else {
+        if (ewTricks >= c.targetTricks || nsTricks >= (14 - c.targetTricks)) {
+            isGameOver = true;
+        }
+    }
+
+    if (totalTricks === 13 || isGameOver) {
+        if (!window.victoryTriggered) {
+            window.victoryTriggered = true;
+            setTimeout(() => {
+                showVictoryScreen(scores);
+            }, 1500);
+        }
+    }
+}
+
+function showVictoryScreen(scores) {
+    const c = currentBiddingState.contract;
+    
+    // 1. 抓取雙方隊伍的名字
+    const getP = (r) => currentPlayersData[r] ? currentPlayersData[r].name : "玩家";
+    const nsNames = `${getP('north')} & ${getP('south')}`;
+    const ewNames = `${getP('west')} & ${getP('east')}`;
+    
+    // 2. 判斷哪一隊是贏家
+    let winningTeam = "";
+    if (c.team === 'NS') {
+        winningTeam = (scores.ns >= c.targetTricks) ? "NS" : "EW";
+    } else {
+        winningTeam = (scores.ew >= c.targetTricks) ? "EW" : "NS";
+    }
+
+    // 3. 判斷「我」是贏家還是輸家
+    const myTeam = (myRole === 'north' || myRole === 'south') ? 'NS' : 'EW';
+    const isMeWinner = (myTeam === winningTeam);
+
+    // 4. 設定大標題
+    const titleEl = document.getElementById('victory-title');
+    if (isMeWinner) {
+        titleEl.innerText = "🏆 勝利！！";
+        titleEl.style.color = "var(--premium-gold)";
+    } else {
+        titleEl.innerText = "💀 失敗";
+        titleEl.style.color = "#95a5a6";
+    }
+
+    // 5. 更新數據行 (玩家 & 玩家: N 墩)
+    // 莊家隊伍後面會標註目標
+    const nsGoal = (c.team === 'NS') ? ` (目標 ${c.targetTricks} 墩)` : "";
+    const ewGoal = (c.team === 'EW') ? ` (目標 ${c.targetTricks} 墩)` : "";
+
+    document.getElementById('v-ns-line').innerHTML = `${nsNames}: <b style="color:white; font-size:1.4rem;">${scores.ns}</b> 墩${nsGoal}`;
+    document.getElementById('v-ew-line').innerHTML = `${ewNames}: <b style="color:white; font-size:1.4rem;">${scores.ew}</b> 墩${ewGoal}`;
+
+    // 6. 隱藏原本的結果文字區 (因為已經整合進數據行了)
+    document.getElementById('v-result').style.display = "none";
+    
+    // 7. 更新合約與贏家名稱顯示
+    const winnerNames = (winningTeam === 'NS') ? nsNames : ewNames;
+    document.getElementById('victory-team-names').innerText = winnerNames;
+    document.getElementById('v-contract').innerText = `${c.level}${c.suit}`;
+
+    // 顯示面板
+    document.getElementById('victory-overlay').classList.add('show');
+}
+
+// --- 點擊再來一場 (投票制) ---
+window.votePlayAgain = function() {
+    // 寫入 Firebase 自己的投票狀態
+    gameRef.child('vote/' + myRole).set('play_again');
+    
+    // 按鈕變灰，防止連點
+    const btn = document.getElementById('btn-again');
+    btn.disabled = true;
+    btn.innerText = "等待其他人...";
+};
+
+// --- 點擊重新分隊 ---
+window.voteReturnLobby = function() {
+    // 只要有一個人主動移除自己的座位並離開
+    // 我們原本寫好的 playersRef 監聽器就會發現少一個人，進而把其他三人也炸回大廳！
+    playersRef.child(myRole).remove().then(() => {
+        window.location.href = "lobby.html";
+    });
+};
 
 // 啟動遊戲引擎
 initializeGame();
