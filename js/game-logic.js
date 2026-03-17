@@ -14,7 +14,7 @@ let currentBiddingState = null;
 let selectedCardIndex = -1; 
 let myCurrentHand = [];       
 let currentTurnGlobally = ""; 
-let currentScoresGlobally = { ns: 0, ew: 0 }; // 【新增】全域快取分數，隨時可呼叫
+let currentScoresGlobally = { ns: 0, ew: 0 }; 
 
 window.onbeforeunload = function() { 
     if (myRole) { playersRef.child(myRole).remove(); } 
@@ -71,10 +71,11 @@ function startListening(rid) {
             alert(`偵測到有人離開遊戲，牌局強制結束！`);
             gameRef.remove(); playersRef.remove(); window.location.href = "lobby.html"; return; 
         }
-        currentPlayersData = players; updatePlayerLabels(currentPlayersData);
+        currentPlayersData = players; 
+        updatePlayerLabels(currentPlayersData);
+        updateTurnUI(); // 玩家資料更新時，刷新輪次顯示
     });
     
-    // 監聽分數變化並寫入全域變數
     gameRef.child('scores').on('value', snap => { 
         currentScoresGlobally = snap.val() || { ns: 0, ew: 0 };
         updateScoreboardUI(currentScoresGlobally); 
@@ -120,8 +121,10 @@ function startListening(rid) {
             }
 
             renderBiddingUI(biddingData);
+            
+            // 喊牌變化時，交給統一引擎去更新輪次顯示
+            updateTurnUI();
 
-            // 🔥【關鍵修復】：只要喊牌一結束，立刻強迫計分板使用最新的合約刷新目標墩數！
             if (biddingData.status === "finished") {
                 updateScoreboardUI(currentScoresGlobally);
             }
@@ -138,13 +141,8 @@ function startListening(rid) {
 
     gameRef.child('turn').on('value', snap => {
         currentTurnGlobally = snap.val();
-        const turnDisplay = document.getElementById('turn-name-display');
-        if (currentTurnGlobally && currentPlayersData[currentTurnGlobally] && (!currentBiddingState || currentBiddingState.status === "finished")) {
-            turnDisplay.innerText = (currentTurnGlobally === myRole) ? `⭐ ${currentPlayersData[currentTurnGlobally].name} (你)` : currentPlayersData[currentTurnGlobally].name;
-            updateFlameEffect(currentTurnGlobally);
-        } else {
-            turnDisplay.innerText = "喊牌中...";
-        }
+        // 出牌輪次變動時，交給統一引擎去更新
+        updateTurnUI();
         if (myCurrentHand.length > 0) renderHand(myCurrentHand);
     });
 
@@ -186,6 +184,33 @@ function startListening(rid) {
         }
     });
 }
+
+// ==========================================
+// 🚀 統一輪次更新引擎 (核心功能新增)
+// ==========================================
+function updateTurnUI() {
+    const turnDisplay = document.getElementById('turn-name-display');
+    if (!turnDisplay) return;
+
+    let activeRole = "";
+    
+    // 智慧判斷：如果還在喊牌，就抓「喊牌的對象」；否則抓「出牌的對象」
+    if (currentBiddingState && currentBiddingState.status !== "finished") {
+        activeRole = currentBiddingState.turn;
+    } else {
+        activeRole = currentTurnGlobally;
+    }
+
+    // 只要有找到對象，就去更新左上角文字和玩家大頭貼火焰
+    if (activeRole && currentPlayersData[activeRole]) {
+        const pName = currentPlayersData[activeRole].name;
+        turnDisplay.innerText = (activeRole === myRole) ? `⭐ ${pName} (你)` : pName;
+        updateFlameEffect(activeRole); // 觸發火焰特效轉移
+    } else {
+        turnDisplay.innerText = "等待中...";
+    }
+}
+// ==========================================
 
 const suitRanks = { '♣': 1, '♦': 2, '♥': 3, '♠': 4, 'NT': 5 };
 
@@ -258,11 +283,9 @@ function updateScoreboardUI(scores = { ns: 0, ew: 0 }) {
     const getN = (r) => currentPlayersData[r] ? currentPlayersData[r].name : "玩家";
     const container = document.getElementById('score-display-teams'); if (!container) return;
 
-    // 一開局或喊牌中，預設顯示問號
     let nsTargetStr = ` <span style="font-size:0.8rem; color:var(--text-muted);">(目標?墩)</span>`; 
     let ewTargetStr = ` <span style="font-size:0.8rem; color:var(--text-muted);">(目標?墩)</span>`;
     
-    // 只要有合約確定，立刻把問號換成真正數字
     if (currentBiddingState && currentBiddingState.status === "finished" && currentBiddingState.contract) {
         const c = currentBiddingState.contract;
         const nsT = c.team === 'NS' ? c.targetTricks : 14 - c.targetTricks;
@@ -444,7 +467,9 @@ function updatePlayerLabels(p) {
 function updateFlameEffect(t) {
     const pos = ['bottom', 'left', 'top', 'right']; const roles = ['south', 'west', 'north', 'east']; const myIdx = roles.indexOf(myRole);
     pos.forEach(p => document.getElementById(`label-${p}`).classList.remove('active-turn'));
-    document.getElementById(`label-${pos[(roles.indexOf(t)-myIdx+4)%4]}`).classList.add('active-turn');
+    if(t && roles.includes(t)){
+        document.getElementById(`label-${pos[(roles.indexOf(t)-myIdx+4)%4]}`).classList.add('active-turn');
+    }
 }
 
 initializeGame();
