@@ -7,7 +7,6 @@ const roomId = urlParams.get('rid') || "Room_Alpha";
 const playersRef = database.ref('players/' + roomId);
 const gameRef = database.ref('games/' + roomId);
 
-// --- 全域變數 ---
 let myRole = ""; 
 let currentPlayersData = {}; 
 let isRendering = false;
@@ -15,13 +14,12 @@ let currentBiddingState = null;
 let selectedCardIndex = -1; 
 let myCurrentHand = [];       
 let currentTurnGlobally = ""; 
+let currentScoresGlobally = { ns: 0, ew: 0 }; // 【新增】全域快取分數，隨時可呼叫
 
-// 斷線防護
 window.onbeforeunload = function() { 
     if (myRole) { playersRef.child(myRole).remove(); } 
 };
 
-// --- 初始化遊戲 ---
 function initializeGame() {
     if (!myLocalName) { window.location.href = "lobby.html"; return; }
     
@@ -34,20 +32,15 @@ function initializeGame() {
         if (myRole) {
             database.ref().off('value'); 
             document.getElementById('loading').style.display = 'none';
-            
             playersRef.child(myRole).onDisconnect().remove();
             startListening(roomId);
-            
             if (myRole === "south") { 
-                gameRef.child('hands').get().then(h => { 
-                    if (!h.exists()) setupNewDeck(); 
-                }); 
+                gameRef.child('hands').get().then(h => { if (!h.exists()) setupNewDeck(); }); 
             }
         }
     });
 }
 
-// 洗牌與發牌設定
 function setupNewDeck() {
     const suits = ['♠', '♥', '♦', '♣'], values = ['A', 'K', 'Q', 'J', '10', '9', '8', '7', '6', '5', '4', '3', '2'];
     let deck = []; suits.forEach(s => values.forEach(v => deck.push({s, v})));
@@ -68,7 +61,6 @@ function setupNewDeck() {
     });
 }
 
-// --- Firebase 監聽引擎 ---
 function startListening(rid) {
     playersRef.on('value', snap => {
         const players = snap.val() || {};
@@ -77,18 +69,16 @@ function startListening(rid) {
         
         if (missingRole && Object.keys(currentPlayersData).length >= 4) {
             alert(`偵測到有人離開遊戲，牌局強制結束！`);
-            gameRef.remove(); playersRef.remove();
-            window.location.href = "lobby.html";
-            return; 
+            gameRef.remove(); playersRef.remove(); window.location.href = "lobby.html"; return; 
         }
-        currentPlayersData = players; 
-        updatePlayerLabels(currentPlayersData);
+        currentPlayersData = players; updatePlayerLabels(currentPlayersData);
     });
     
+    // 監聽分數變化並寫入全域變數
     gameRef.child('scores').on('value', snap => { 
-        const scores = snap.val() || { ns: 0, ew: 0 };
-        updateScoreboardUI(scores); 
-        checkGameEnd(scores); 
+        currentScoresGlobally = snap.val() || { ns: 0, ew: 0 };
+        updateScoreboardUI(currentScoresGlobally); 
+        checkGameEnd(currentScoresGlobally); 
     });
 
     gameRef.child('personalScores').on('value', snap => {
@@ -112,12 +102,8 @@ function startListening(rid) {
         }
     });
 
-    // 監聽自己的手牌
     gameRef.child('hands/' + myRole).on('value', snap => { 
-        if (snap.val()) {
-            myCurrentHand = snap.val();
-            renderHand(myCurrentHand); 
-        }
+        if (snap.val()) { myCurrentHand = snap.val(); renderHand(myCurrentHand); }
     });
 
     gameRef.child('bidding').on('value', async snap => {
@@ -128,25 +114,21 @@ function startListening(rid) {
 
             if (biddingData.status === "active") {
                 document.getElementById('victory-overlay').classList.remove('show');
-                window.victoryTriggered = false;
-                updateContractUI(null);
+                window.victoryTriggered = false; updateContractUI(null);
                 const btnAgain = document.getElementById('btn-again');
                 if (btnAgain) { btnAgain.disabled = false; btnAgain.innerText = "再來一場"; }
             }
 
             renderBiddingUI(biddingData);
-            
-            // 【修復核心】：只要現在是打牌階段 (finished)，就強制刷新計分板顯示目標墩數！
+
+            // 🔥【關鍵修復】：只要喊牌一結束，立刻強迫計分板使用最新的合約刷新目標墩數！
             if (biddingData.status === "finished") {
-                gameRef.child('scores').get().then(snap => {
-                    updateScoreboardUI(snap.val() || { ns: 0, ew: 0 });
-                });
+                updateScoreboardUI(currentScoresGlobally);
             }
 
             if (previousStatus !== "finished" && biddingData.status === "finished") {
                 const hSnap = await gameRef.child('hands/' + myRole).get();
                 if (hSnap.exists()) renderHand(hSnap.val());
-                
                 gameRef.child('personalScores').get().then(snap => {
                     updatePersonalTrickPiles(snap.val() || { south: 0, west: 0, north: 0, east: 0 });
                 });
@@ -154,7 +136,6 @@ function startListening(rid) {
         }
     });
 
-    // 監聽輪次
     gameRef.child('turn').on('value', snap => {
         currentTurnGlobally = snap.val();
         const turnDisplay = document.getElementById('turn-name-display');
@@ -164,29 +145,23 @@ function startListening(rid) {
         } else {
             turnDisplay.innerText = "喊牌中...";
         }
-        
         if (myCurrentHand.length > 0) renderHand(myCurrentHand);
     });
 
-    // 監聽桌面卡片
     gameRef.child('table').on('value', async (snap) => {
         const center = document.getElementById('table-center'); 
         const tableCardsObj = snap.val();
         if (!tableCardsObj) { center.innerHTML = ""; return; }
         
         center.innerHTML = ""; 
-        
         const cardsArray = Object.keys(tableCardsObj).sort().map(k => tableCardsObj[k]);
         const leadSuit = cardsArray[0].s; 
         const trumpSuit = (currentBiddingState && currentBiddingState.contract && currentBiddingState.contract.suit !== 'NT') ? currentBiddingState.contract.suit : null;
         const vals = {'A':14, 'K':13, 'Q':12, 'J':11, '10':10, '9':9, '8':8, '7':7, '6':6, '5':5, '4':4, '3':3, '2':2};
         
         let bestCard = cardsArray[0]; 
-        
         cardsArray.forEach(c => { 
-            let isCurrentTrump = (c.s === trumpSuit);
-            let isBestTrump = (bestCard.s === trumpSuit);
-            
+            let isCurrentTrump = (c.s === trumpSuit); let isBestTrump = (bestCard.s === trumpSuit);
             if (isCurrentTrump && !isBestTrump) { bestCard = c; }
             else if (isCurrentTrump && isBestTrump) { if (vals[c.v] > vals[bestCard.v]) bestCard = c; }
             else if (!isCurrentTrump && !isBestTrump && c.s === leadSuit && bestCard.s === leadSuit) { 
@@ -207,22 +182,19 @@ function startListening(rid) {
 
         if (Object.keys(tableCardsObj).length === 4) { 
             gameRef.child('turn').set("waiting"); 
-            setTimeout(() => { checkTrickWinner(cardsArray, leadSuit, trumpSuit, vals); }, 1500); 
+            setTimeout(() => { checkTrickWinner(cardsArray, leadSuit, trumpSuit, vals); }, 2000); 
         }
     });
 }
 
-// --- 喊牌邏輯 ---
 const suitRanks = { '♣': 1, '♦': 2, '♥': 3, '♠': 4, 'NT': 5 };
 
 function renderBiddingUI(biddingData) {
     if (biddingData.status !== "finished") updateContractUI(null);
     const modal = document.getElementById('bidding-modal');
     if (biddingData.status === "finished") {
-        modal.classList.add('fly-to-top-left');
-        updateContractUI(biddingData.contract);
-        setTimeout(() => { modal.style.display = "none"; }, 800);
-        return;
+        modal.classList.add('fly-to-top-left'); updateContractUI(biddingData.contract);
+        setTimeout(() => { modal.style.display = "none"; }, 800); return;
     }
     modal.style.display = "block"; modal.classList.remove('fly-to-top-left');
 
@@ -248,9 +220,7 @@ function renderBiddingUI(biddingData) {
                 const currentSuitRank = suitRanks[biddingData.currentBid.suit];
                 if (level < currentLevel || (level === currentLevel && suitRanks[suit] <= currentSuitRank)) isDisabled = true;
             }
-            btn.disabled = isDisabled;
-            btn.onclick = () => submitBid(level, suit);
-            container.appendChild(btn);
+            btn.disabled = isDisabled; btn.onclick = () => submitBid(level, suit); container.appendChild(btn);
         });
     }
     document.getElementById('btn-pass').disabled = !isMyTurn;
@@ -284,21 +254,19 @@ function finishBidding(winningBid) {
     gameRef.child('turn').set(flow[declarer]); 
 }
 
-// --- 計分板 UI (極簡目標顯示) ---
 function updateScoreboardUI(scores = { ns: 0, ew: 0 }) {
     const getN = (r) => currentPlayersData[r] ? currentPlayersData[r].name : "玩家";
-    const container = document.getElementById('score-display-teams'); 
-    if (!container) return;
+    const container = document.getElementById('score-display-teams'); if (!container) return;
 
-    let nsTargetStr = "";
-    let ewTargetStr = "";
-
-    // 喊牌結束後，計算並顯示雙方的目標墩數
+    // 一開局或喊牌中，預設顯示問號
+    let nsTargetStr = ` <span style="font-size:0.8rem; color:var(--text-muted);">(目標?墩)</span>`; 
+    let ewTargetStr = ` <span style="font-size:0.8rem; color:var(--text-muted);">(目標?墩)</span>`;
+    
+    // 只要有合約確定，立刻把問號換成真正數字
     if (currentBiddingState && currentBiddingState.status === "finished" && currentBiddingState.contract) {
         const c = currentBiddingState.contract;
         const nsT = c.team === 'NS' ? c.targetTricks : 14 - c.targetTricks;
         const ewT = c.team === 'EW' ? c.targetTricks : 14 - c.targetTricks;
-        
         nsTargetStr = ` <span style="font-size:0.8rem; color:var(--text-muted);">(目標${nsT}墩)</span>`;
         ewTargetStr = ` <span style="font-size:0.8rem; color:var(--text-muted);">(目標${ewT}墩)</span>`;
     }
@@ -310,11 +278,11 @@ function updateScoreboardUI(scores = { ns: 0, ew: 0 }) {
 
 function updateContractUI(contract) {
     const displayEl = document.getElementById('contract-display');
-    if (!contract) { displayEl.innerHTML = `🏆 狀態: <span style="color:var(--text-muted);">競標中...</span>`; return; }
+    if (!contract) { displayEl.innerHTML = `🏆 狀態: <span style="color:var(--text-muted);">喊牌中...</span>`; return; }
     displayEl.innerHTML = `🏆 最終喊牌: <span style="color:var(--premium-gold);">${contract.level}${contract.suit}</span>`;
 }
 
-// --- 手牌渲染與嚴格防呆邏輯 ---
+// --- 手牌渲染與防呆邏輯 ---
 async function renderHand(hand) {
     if (isRendering) return; isRendering = true;
     const container = document.getElementById('my-hand'); container.innerHTML = "";
@@ -322,13 +290,10 @@ async function renderHand(hand) {
     const tableSnap = await gameRef.child('table').get();
     const tableCardsObj = tableSnap.val();
     let tableCards = [];
-    if (tableCardsObj) {
-        tableCards = Object.keys(tableCardsObj).sort().map(k => tableCardsObj[k]);
-    }
+    if (tableCardsObj) tableCards = Object.keys(tableCardsObj).sort().map(k => tableCardsObj[k]);
     
     const leadSuit = tableCards.length > 0 ? tableCards[0].s : null;
     const hasLeadSuit = leadSuit ? hand.some(c => c.s === leadSuit) : false;
-    
     const sorted = sortHand(hand);
     
     sorted.forEach((card, index) => {
@@ -336,20 +301,19 @@ async function renderHand(hand) {
         let isBidding = (!currentBiddingState || currentBiddingState.status !== "finished");
         
         let isWrongSuit = (leadSuit && hasLeadSuit && card.s !== leadSuit);
-        let isVisuallyDisabled = isBidding || isWrongSuit;
+        let isVisuallyDisabled = (!isBidding && isWrongSuit);
+        let isClickDisabled = isBidding || isWrongSuit;
         
         div.className = `card ${(card.s === '♥' || card.s === '♦') ? 'red' : ''} ${isVisuallyDisabled ? 'disabled' : ''} ${index === selectedCardIndex ? 'selected' : ''}`;
         div.style.zIndex = index; div.innerHTML = `${card.v}<span>${card.s}</span>`;
         
         div.onclick = (e) => {
-            if (currentTurnGlobally !== myRole || isVisuallyDisabled) return;
+            if (currentTurnGlobally !== myRole || isClickDisabled) return;
             
             if (selectedCardIndex === index) { 
-                selectedCardIndex = -1; 
-                startPlayAnimation(e.currentTarget, card, index, sorted); 
+                selectedCardIndex = -1; startPlayAnimation(e.currentTarget, card, index, sorted); 
             } else { 
-                selectedCardIndex = index; 
-                renderHand(hand); 
+                selectedCardIndex = index; renderHand(hand); 
             }
         };
         container.appendChild(div);
@@ -357,7 +321,6 @@ async function renderHand(hand) {
     isRendering = false;
 }
 
-// --- 出牌與吃墩動畫 ---
 function startPlayAnimation(cardEl, cardData, index, hand) {
     cardEl.style.opacity = '0';
     tryPlayCard(cardData, index, hand);
@@ -366,13 +329,9 @@ function startPlayAnimation(cardEl, cardData, index, hand) {
 function tryPlayCard(card, index, hand) {
     gameRef.child('turn').get().then(snap => {
         if (snap.val() !== myRole) return; 
-        
-        const sortedHand = sortHand(hand);
-        sortedHand.splice(index, 1);
+        const sortedHand = sortHand(hand); sortedHand.splice(index, 1);
         gameRef.child('hands/' + myRole).set(sortedHand);
-        
         gameRef.child('table').push({ from: myRole, playerName: myLocalName, ...card });
-        
         const flow = { south: "west", west: "north", north: "east", east: "south" };
         gameRef.child('turn').set(flow[myRole]);
     });
@@ -380,7 +339,6 @@ function tryPlayCard(card, index, hand) {
 
 function checkTrickWinner(cardsArray, leadSuit, trumpSuit, vals) {
     let winner = cardsArray[0]; 
-    
     cardsArray.forEach(c => { 
         let isCurrentT = (c.s === trumpSuit); let isBestT = (winner.s === trumpSuit);
         if (isCurrentT && !isBestT) winner = c;
@@ -389,7 +347,6 @@ function checkTrickWinner(cardsArray, leadSuit, trumpSuit, vals) {
             if (vals[c.v] > vals[winner.v]) winner = c; 
         }
     });
-    
     playTrickAnimation(winner.from);
 }
 
@@ -402,10 +359,8 @@ function playTrickAnimation(winnerRole) {
         card.classList.add('flying'); const r = card.getBoundingClientRect();
         card.style.left = r.left + 'px'; card.style.top = r.top + 'px';
         setTimeout(() => { 
-            card.style.left = (targetRect.left + 20) + 'px'; 
-            card.style.top = targetRect.top + 'px'; 
-            card.style.transform = 'scale(0.1)'; 
-            card.style.opacity = '0'; 
+            card.style.left = (targetRect.left + 20) + 'px'; card.style.top = targetRect.top + 'px'; 
+            card.style.transform = 'scale(0.1)'; card.style.opacity = '0'; 
         }, 50);
     });
     
@@ -414,29 +369,23 @@ function playTrickAnimation(winnerRole) {
             const team = (winnerRole === 'south' || winnerRole === 'north') ? 'ns' : 'ew';
             gameRef.child('scores/' + team).transaction(s => (s || 0) + 1);
             gameRef.child('personalScores/' + winnerRole).transaction(s => (s || 0) + 1);
-            gameRef.child('table').remove(); 
-            gameRef.child('turn').set(winnerRole);
+            gameRef.child('table').remove(); gameRef.child('turn').set(winnerRole);
         }
     }, 700);
 }
 
-// 個人吃墩數顯示
 function updatePersonalTrickPiles(pScores) {
     const roles = ['south', 'west', 'north', 'east']; const myIdx = roles.indexOf(myRole); const pos = ['bottom', 'left', 'top', 'right'];
     roles.forEach((r, i) => { 
         const el = document.getElementById(`pile-${pos[(i-myIdx+4)%4]}`); 
         if (el) {
             if (currentBiddingState && currentBiddingState.status === "finished") {
-                el.style.display = 'flex'; 
-                el.innerText = pScores[r] || 0; 
-            } else {
-                el.style.display = 'none'; 
-            }
+                el.style.display = 'flex'; el.innerText = pScores[r] || 0; 
+            } else { el.style.display = 'none'; }
         }
     });
 }
 
-// --- 勝利結算系統 ---
 function checkGameEnd(scores) {
     if (!currentBiddingState || !currentBiddingState.contract) return;
     const c = currentBiddingState.contract;
@@ -463,16 +412,13 @@ function showVictoryScreen(scores) {
     
     document.getElementById('victory-title').innerText = (myTeam === winTeam) ? "🏆 勝利！！" : "💀 失敗";
     document.getElementById('victory-title').style.color = (myTeam === winTeam) ? "var(--premium-gold)" : "#95a5a6";
-
     document.getElementById('v-ns-line').innerHTML = `${nsNames}: <b style="color:white; font-size:1.4rem;">${scores.ns}</b> 墩${c.team==='NS'?' (目標 '+c.targetTricks+' 墩)':''}`;
     document.getElementById('v-ew-line').innerHTML = `${ewNames}: <b style="color:white; font-size:1.4rem;">${scores.ew}</b> 墩${c.team==='EW'?' (目標 '+c.targetTricks+' 墩)':''}`;
-    
     document.getElementById('victory-team-names').innerText = (winTeam === 'NS') ? nsNames : ewNames;
     document.getElementById('v-contract').innerText = `${c.level}${c.suit}`;
     document.getElementById('victory-overlay').classList.add('show');
 }
 
-// --- 按鈕與工具邏輯 ---
 window.votePlayAgain = function() {
     gameRef.child('vote/' + myRole).set('play_again');
     const btn = document.getElementById('btn-again'); btn.disabled = true; btn.innerText = "等待其他人...";
