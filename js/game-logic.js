@@ -115,15 +115,16 @@ function startListening(rid) {
 
             if (biddingData.status === "active") {
                 document.getElementById('victory-overlay').classList.remove('show');
-                window.victoryTriggered = false; updateContractUI(null);
+                window.victoryTriggered = false; 
+                updateContractUI(null);
                 const btnAgain = document.getElementById('btn-again');
                 if (btnAgain) { btnAgain.disabled = false; btnAgain.innerText = "再來一場"; }
+                
+                // 🔥【關鍵新增】：一回到喊牌狀態，強制傳入 0 分並刷新計分板，讓目標變回 ?
+                updateScoreboardUI({ ns: 0, ew: 0 }); 
             }
 
             renderBiddingUI(biddingData);
-            
-            // 喊牌變化時，交給統一引擎去更新輪次顯示
-            updateTurnUI();
 
             if (biddingData.status === "finished") {
                 updateScoreboardUI(currentScoresGlobally);
