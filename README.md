@@ -32,6 +32,6 @@
 
 * **前端 (Frontend)**: Vanilla JavaScript, HTML5, CSS3
 * **後端與資料庫 (Backend & DB)**: Firebase Realtime Database
-* **部署 (Deployment)**: GitHub Pages
+* **部署 (Deployment)**: GitHub Pages 
 
 ---
