@@ -165,17 +165,42 @@ function renderBiddingUI() {
     modal.style.display = "block"; modal.classList.remove('fly-to-top-left');
 
     const historyDiv = document.getElementById('bidding-history');
-    let historyText = currentBiddingState.history.length > 0 ? currentBiddingState.history.slice(-4).join(' ➔ ') : "請開始喊牌";
+    
+    // --- 🌟 新增：玩家名字轉隊伍顏色的工具 ---
+    const getPlayerColor = (name) => {
+        if (name.includes("你") || name.includes("南")) return "#5470c6"; // 南家：藍色
+        if (name.includes("西")) return "#fbd347"; // 西家：黃色
+        if (name.includes("北")) return "#b32e2e"; // 北家：紅色
+        if (name.includes("東")) return "#628e46"; // 東家：綠色
+        return "white";
+    };
+
+    // --- 🌟 新增：把歷史紀錄變成彩色標籤 ---
+    let historyHtmlItems = currentBiddingState.history.slice(-4).map(item => {
+        // 將 "你: 1♣" 切割成 ["你", "1♣"]
+        let parts = item.split(': ');
+        let name = parts[0];
+        let bid = parts[1];
+        let color = getPlayerColor(name);
+        
+        // 加上顏色與微透黑底框，看起來像小圓角標籤
+        return `<span style="color: ${color}; font-size: 1.3rem; font-weight: bold; background: rgba(0,0,0,0.3); padding: 4px 10px; border-radius: 8px;">${bid}</span>`;
+    });
+
+    // 組合彩色標籤與箭頭
+    let historyText = historyHtmlItems.length > 0 ? historyHtmlItems.join(' <span style="color: #95a5a6; font-size: 1.2rem;">➔</span> ') : "請開始喊牌";
+    
+    // --- 🌟 新增：目前最高出價也換成彩色標籤 ---
     if (currentBiddingState.currentBid) {
-        historyText += `<br><span style="color:var(--premium-gold);font-size:1.1rem;">目前最高: ${currentBiddingState.currentBid.level}${currentBiddingState.currentBid.suit} (${currentBiddingState.currentBid.name})</span>`;
+        let maxColor = getPlayerColor(currentBiddingState.currentBid.name);
     }
     historyDiv.innerHTML = historyText;
+    historyDiv.style.marginBottom = "25px";
 
-    const isMyTurn = (currentBiddingState.turn === myRole);
-    document.getElementById('bidding-title').innerText = isMyTurn ? "🌟 輪到你喊牌了！" : `等待 ${currentPlayersData[currentTurnGlobally].name} 喊牌...`;
-    
+    const isMyTurn = (currentBiddingState.turn === myRole);    
     const container = document.getElementById('bid-buttons-container'); container.innerHTML = "";
     const suits = ['♣', '♦', '♥', '♠', 'NT'];
+    
     for (let level = 1; level <= 7; level++) {
         suits.forEach(suit => {
             const btn = document.createElement('button'); btn.className = 'bid-btn';
@@ -240,33 +265,52 @@ function finishBidding(winningBid) {
 // 桌面與打牌邏輯
 // ==========================================
 function renderTable() {
-    const center = document.getElementById('table-center'); 
-    center.innerHTML = ""; 
-    
+    // 1. 定義四個方位的容器
+    const slots = {
+        north: document.getElementById('slot-north'),
+        south: document.getElementById('slot-south'),
+        west: document.getElementById('slot-west'),
+        east: document.getElementById('slot-east')
+    };
+
+    // 2. 先清空這四個容器
+    Object.values(slots).forEach(slot => {
+        if (slot) slot.innerHTML = "";
+    });
+
     if (Object.keys(tableCards).length === 0) return;
 
+    // 3. 找出目前最強的牌 (為了發光特效)
     const cardsArray = Object.values(tableCards);
-    const leadSuit = cardsArray[0].s; 
+    const leadSuit = cardsArray[0].s;
     const trumpSuit = (currentBiddingState && currentBiddingState.contract && currentBiddingState.contract.suit !== 'NT') ? currentBiddingState.contract.suit : null;
     const vals = {'A':14, 'K':13, 'Q':12, 'J':11, '10':10, '9':9, '8':8, '7':7, '6':6, '5':5, '4':4, '3':3, '2':2};
     
-    let bestCard = cardsArray[0]; 
-    cardsArray.forEach(c => { 
-        let isCurrentTrump = (c.s === trumpSuit); let isBestTrump = (bestCard.s === trumpSuit);
-        if (isCurrentTrump && !isBestTrump) { bestCard = c; }
-        else if (isCurrentTrump && isBestTrump) { if (vals[c.v] > vals[bestCard.v]) bestCard = c; }
-        else if (!isCurrentTrump && !isBestTrump && c.s === leadSuit && bestCard.s === leadSuit) { 
-            if (vals[c.v] > vals[bestCard.v]) bestCard = c; 
+    let bestCard = cardsArray[0];
+    cardsArray.forEach(c => {
+        let isCurrentTrump = (c.s === trumpSuit);
+        let isBestTrump = (bestCard.s === trumpSuit);
+        if (isCurrentTrump && !isBestTrump) bestCard = c;
+        else if (isCurrentTrump && isBestTrump) { if(vals[c.v] > vals[bestCard.v]) bestCard = c; }
+        else if (!isCurrentTrump && !isBestTrump && c.s === leadSuit && bestCard.s === leadSuit) {
+            if(vals[c.v] > vals[bestCard.v]) bestCard = c;
         }
     });
-    
+
+    // 4. 將牌渲染到對應的方位槽位
     Object.entries(tableCards).forEach(([role, data]) => {
+        const targetSlot = slots[role]; // 這裡會根據 role (north, south...) 找到對應容器
+        if (!targetSlot) return;
+
         const cardDiv = document.createElement('div');
         const isBest = (data.v === bestCard.v && data.s === bestCard.s);
+        
+        // 使用你的 CSS class
         cardDiv.className = `card table-card ${(data.s === '♥' || data.s === '♦') ? 'red' : ''} ${isBest ? 'best-card' : ''}`;
-        cardDiv.setAttribute('data-playername', data.playerName); 
         cardDiv.innerHTML = `${data.v}<span>${data.s}</span>`;
-        center.appendChild(cardDiv);
+        
+        // 🌟 關鍵：把牌加進對應方位的 Slot 裡
+        targetSlot.appendChild(cardDiv);
     });
 }
 
@@ -377,43 +421,58 @@ function renderHand() {
 // UI 更新與結算
 // ==========================================
 function updateTurnUI() {
-    const turnDisplay = document.getElementById('turn-name-display');
-    if (!turnDisplay) return;
-
+    // 取得現在輪到誰 (防呆檢查)
     let activeRole = (currentBiddingState && currentBiddingState.status !== "finished") ? currentBiddingState.turn : currentTurnGlobally;
 
-    if (activeRole && currentPlayersData[activeRole]) {
-        const pName = currentPlayersData[activeRole].name;
-        turnDisplay.innerText = (activeRole === myRole) ? `⭐ ${pName}` : pName;
+    // 1. 先把所有圓點的閃爍狀態拔掉
+    ['south', 'north', 'west', 'east'].forEach(role => {
+        let dot = document.getElementById(`dot-${role}`);
+        if(dot) dot.classList.remove('dot-active');
+    });
+
+    // 2. 幫當前輪到的玩家圓點，加上閃爍狀態
+    if (activeRole && roles.includes(activeRole)) {
+        let activeDot = document.getElementById(`dot-${activeRole}`);
+        if(activeDot) activeDot.classList.add('dot-active');
+        
+        // 桌面上的名字框框一樣保留發光特效
         updateFlameEffect(activeRole); 
-    } else {
-        turnDisplay.innerText = "等待中...";
     }
 }
 
 function updateScoreboardUI() {
-    const container = document.getElementById('score-display-teams'); if (!container) return;
-
-    let nsTargetStr = ` <span style="font-size:0.8rem; color:var(--text-muted);">(目標?墩)</span>`; 
-    let ewTargetStr = ` <span style="font-size:0.8rem; color:var(--text-muted);">(目標?墩)</span>`;
+    let nsT = "?"; let ewT = "?";
     
+    // 如果喊牌結束，計算雙方目標墩數
     if (currentBiddingState && currentBiddingState.status === "finished" && currentBiddingState.contract) {
         const c = currentBiddingState.contract;
-        const nsT = c.team === 'NS' ? c.targetTricks : 14 - c.targetTricks;
-        const ewT = c.team === 'EW' ? c.targetTricks : 14 - c.targetTricks;
-        nsTargetStr = ` <span style="font-size:0.8rem; color:var(--text-muted);">(目標${nsT}墩)</span>`;
-        ewTargetStr = ` <span style="font-size:0.8rem; color:var(--text-muted);">(目標${ewT}墩)</span>`;
+        nsT = c.team === 'NS' ? c.targetTricks : 14 - c.targetTricks;
+        ewT = c.team === 'EW' ? c.targetTricks : 14 - c.targetTricks;
     }
 
-    container.innerHTML = 
-        `電腦(北) & 你: <span class="score-tag">${scores.ns||0}</span> 墩${nsTargetStr}<br>` + 
-        `電腦(西) & 電腦(東): <span class="score-tag">${scores.ew||0}</span> 墩${ewTargetStr}`;
+    // 抓取上方導覽列的兩個文字區塊
+    const nsEl = document.getElementById('score-ns-text');
+    const ewEl = document.getElementById('score-ew-text');
+    
+    // 將當前吃到的分數 (scores.ns) 與目標分數 (nsT) 寫入畫面
+    if (nsEl) nsEl.innerHTML = `team ${scores.ns || 0}/${nsT}`;
+    if (ewEl) ewEl.innerHTML = `team ${scores.ew || 0}/${ewT}`;
 }
 
 function updateContractUI(contract) {
     const displayEl = document.getElementById('contract-display');
-    if (!contract) { displayEl.innerHTML = `🏆 狀態: <span style="color:var(--text-muted);">喊牌中...</span>`; return; }
-    displayEl.innerHTML = `🏆 最終喊牌: <span style="color:var(--premium-gold);">${contract.level}${contract.suit}</span>`;
+    
+    if (!contract) { 
+        displayEl.innerHTML = `喊牌中...`; 
+        return; 
+    }
+    
+    // 建立角色與對應的顏色色碼
+    const colorHexMap = { 'south': '#5470c6', 'west': '#fbd347', 'north': '#b32e2e', 'east': '#628e46' };
+    const cColor = colorHexMap[contract.declarer] || '#333';
+    
+    // 套用 Final: 加上喊到合約那家的顏色
+    displayEl.innerHTML = `Final: <span style="color: ${cColor}; font-size: 1.3rem; font-weight: 900; text-shadow: 1px 1px 0px rgba(255,255,255,0.5); margin-left: 5px;">${contract.level}${contract.suit}</span>`;
 }
 
 function updatePersonalTrickPiles() {

@@ -3,25 +3,48 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>橋牌四人對戰 - 專業競技版</title>
+    <title>橋牌單人模式 - 專業競技版</title>
     <link rel="stylesheet" href="css/main.css">
     <link rel="stylesheet" href="css/game.css">
+
 </head>
 <body>
 
     <div id="loading" class="waiting-overlay"><h2>遊戲準備中... 洗牌發牌中...</h2></div>
 
-    <div class="status-bar">
-        <div id="contract-display">目前喊牌: 喊牌中...</div>
-        <div id="score-display-teams">載入中...</div>
-        <div id="turn-display">輪到: <span id="turn-name-display">...</span></div>
+    <div class="top-nav-bar">
+        
+        <div class="game-status">
+            <span id="contract-display">喊牌中...</span> 
+        </div>
+
+        <div class="teams-container">
+            <div class="team-info">
+                <div class="dot bg-blue" id="dot-south"></div>
+                <div class="dot bg-red" id="dot-north"></div>
+                <span class="team-text" id="score-ns-text">team 0/?</span>
+            </div>
+            
+            <span class="nav-divider">|</span>
+            
+            <div class="team-info">
+                <div class="dot bg-yellow" id="dot-west"></div>
+                <div class="dot bg-green" id="dot-east"></div>
+                <span class="team-text" id="score-ew-text">team 0/?</span>
+            </div>
+        </div>
+        
+        <div id="score-display-teams" style="display: none;"></div>
+        <div id="turn-display" style="display: none;"></div>
+    </div>
+        
+        <div id="score-display-teams" style="display: none;"></div>
+        <div id="turn-display" style="display: none;"></div>
     </div>
 
     <div id="bidding-modal">
-        <h3 id="bidding-title">喊牌階段</h3>
         <div id="bidding-history">等待喊牌...</div>
-        <div class="bid-grid" id="bid-buttons-container">
-            </div>
+        <div class="bid-grid" id="bid-buttons-container"></div>
         <button class="bid-btn pass-btn" id="btn-pass" onclick="submitBid('Pass')">Pass</button>
     </div>
 
@@ -29,18 +52,20 @@
         <div class="player-slot pos-top">
             <div class="player-info" id="label-top">等待中...</div>
             <div class="trick-pile pile-top" id="pile-top">0</div>
-            <div style="font-size: 2rem;"></div>
         </div>
         <div class="player-slot pos-left">
             <div class="player-info" id="label-left">等待中...</div>
             <div class="trick-pile pile-left" id="pile-left">0</div>
-            <div style="writing-mode: vertical-lr; font-size: 2rem;"></div>
         </div>
-        <div class="center-field" id="table-center"></div>
-        <div class="player-slot pos-right">
+    <div class="center-field" id="table-center">
+        <div class="play-slot slot-north" id="slot-north"></div>
+        <div class="play-slot slot-west" id="slot-west"></div>
+        <div class="play-slot slot-east" id="slot-east"></div>
+        <div class="play-slot slot-south" id="slot-south"></div>
+    </div>
+            <div class="player-slot pos-right">
             <div class="player-info" id="label-right">等待中...</div>
             <div class="trick-pile pile-right" id="pile-right">0</div>
-            <div style="writing-mode: vertical-lr; font-size: 2rem;"></div>
         </div>
         <div class="player-slot pos-bottom">
             <div class="player-info" id="label-bottom">- (你)</div>
@@ -63,14 +88,11 @@
             </div>
             
             <div class="victory-buttons">
-                <button class="btn-action btn-again" id="btn-again" onclick="votePlayAgain()">再來一場</button>
-                <button class="btn-action btn-lobby" id="btn-lobby" onclick="voteReturnLobby()">重新分隊</button>
-            </div>
-            
-            <div id="vote-status-display" style="margin-top: 15px; font-size: 0.95rem; color: var(--text-muted); line-height: 1.6;">
+                <button class="btn-action btn-again" id="btn-again" onclick="setupNewDeck()">再來一場</button>
             </div>
         </div>
     </div>
+    
     <script src="js/single-logic.js"></script>
 </body>
 </html>
