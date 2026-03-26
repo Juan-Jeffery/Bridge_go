@@ -1,4 +1,4 @@
-/* 檔案路徑：css/game.css - 終極適應版 */
+/* 檔案路徑：css/game.css - 終極適應版 (包含極簡白底導覽列與彩色玩家框) */
 
 :root {
     --best-glow: #ffeb3b;
@@ -9,22 +9,113 @@
     --premium-bg: #1a252f;
     --text-soft: #ecf0f1;
     --text-muted: #95a5a6;
+    
+    /* 導覽列與隊伍顏色 */
+    --bg-light: #f8f9fa; 
+    --line-purple: #5e4b8a;
+    --team-blue: #5470c6;
+    --team-red: #b32e2e;
+    --team-yellow: #fbd347;
+    --team-green: #628e46;
 }
 
 /* --- 1. 基礎環境設定：嚴格禁止溢出 --- */
 body, html { 
     overflow: hidden; 
     background-color: #15202b; 
-    height: 100%; /* 改用 100% 防 100dvh/vw 在某些設備的誤差 */
+    height: 100%; 
     width: 100%;
     margin: 0; padding: 0;
     font-family: "PingFang TC", "Microsoft JhengHei", sans-serif;
 }
 
+/* ==========================================
+   A：頂部極簡白底導覽列 (狀態在左、分數在右)
+========================================== */
+.top-nav-bar {
+    position: absolute; top: 0; left: 0; width: 100%; height: 60px;
+    background: var(--bg-light); 
+    border-bottom: 2px solid var(--line-purple);
+    display: flex !important; justify-content: space-between !important; align-items: center;
+    padding: 0 20px; box-sizing: border-box;
+    color: #000; z-index: 9999;
+}
+
+/* 左側：狀態區自然靠左，水平排列 */
+.game-status { 
+    display: flex; align-items: center;
+    font-size: 1.2rem; color: #333; font-weight: bold; 
+}
+
+/* 右側：包住兩隊的容器，強制水平並排 (Row) */
+.teams-container {
+    display: flex; align-items: center; justify-content: flex-end;
+}
+
+/* 隊伍內部也是水平排列 */
+.team-info { 
+    display: flex; align-items: center; 
+}
+
+/* 導覽列通用的分隔線 | */
+.nav-divider {
+    color: #ccc; margin: 0 15px; font-weight: 300; font-size: 1.5rem;
+}
+
+/* 圓點設定：縮小、拿掉黑框 */
+.dot { 
+    width: 18px; height: 18px; border-radius: 50%; 
+    border: none; margin-right: 6px;
+    position: relative; /* 🌟 新增這行：讓外環可以對齊它 */
+}
+.bg-blue { background-color: var(--team-blue); }
+.bg-red { background-color: var(--team-red); }
+.bg-yellow { background-color: var(--team-yellow); }
+.bg-green { background-color: var(--team-green); }
+
+/* team 文字樣式 */
+.team-text { margin-left: 10px; font-size: 1.3rem; font-weight: bold; }
+
+/* 隱藏舊版的 status-bar */
+.status-bar { display: none !important; }
+
+/* ==========================================
+   B：導覽列圓點閃爍特效 (外環出現消失)
+========================================== */
+.dot-active {
+    z-index: 10;
+}
+
+/* 🌟 利用 ::after 在圓點外圍創造一個環 */
+.dot-active::after {
+    content: '';
+    position: absolute;
+    top: -4px; left: -4px; right: -4px; bottom: -4px; /* 往外推 4px，製造出圓點與環之間的空隙 */
+    border-radius: 50%;
+    border: 2px solid; /* 環的粗細設定為 2px */
+    animation: ring-blink 0.6s infinite alternate; /* 0.6秒閃爍一次 */
+}
+
+/* 各家圓環套用專屬顏色 */
+.dot-active#dot-south::after { border-color: var(--team-blue); }
+.dot-active#dot-north::after { border-color: var(--team-red); }
+.dot-active#dot-west::after { border-color: var(--team-yellow); }
+.dot-active#dot-east::after { border-color: var(--team-green); }
+
+/* 閃爍動畫：控制透明度出現與消失 */
+@keyframes ring-blink {
+    0% { opacity: 0; transform: scale(0.85); } /* 剛開始稍微內縮且透明 */
+    100% { opacity: 1; transform: scale(1); }  /* 出現時變回正常大小 */
+}
+
+/* ==========================================
+   C：桌面佈局調整 (往下推避免被導覽列擋住)
+========================================== */
 .table-container { 
     display: grid; 
     width: 100%; 
-    height: 100%; 
+    height: calc(100% - 60px); /* 扣掉導覽列 */
+    margin-top: 60px; /* 往下推 */
     background: radial-gradient(circle, #1a5d1a 0%, #112a10 100%); 
     /* 電腦版預設佈局 */
     grid-template-columns: 200px 1fr 200px; 
@@ -34,45 +125,102 @@ body, html {
 
 .player-slot { position: relative; display: flex; flex-direction: column; justify-content: center; align-items: center; width: 100%; }
 
-/* 名稱框與火焰特效 */
+/* ==========================================
+   D：玩家專屬底色與特效
+========================================== */
 .player-info { 
-    background: rgba(0,0,0,0.7); padding: 8px 15px; border-radius: 8px; 
-    font-size: 0.9rem; border: 1px solid var(--premium-gold); 
-    margin: 10px; text-align: center; z-index: 10;
-    color: var(--text-soft); transition: all 0.5s ease;
+    padding: 8px 15px; border-radius: 8px; 
+    font-size: 0.9rem; margin: 10px; text-align: center; z-index: 10;
+    transition: all 0.5s ease;
+    font-weight: bold; text-shadow: none; /* 拿掉舊版陰影 */
+    position: relative; /* 🌟 關鍵：讓外環可以對齊它 */
 }
 
+/* 各家專屬顏色設定 */
+#label-top { background-color: var(--team-red); color: white; }
+#label-bottom { background-color: var(--team-blue); color: white; }
+#label-left { background-color: var(--team-yellow); color: black; } /* 黃底黑字較清晰 */
+#label-right { background-color: var(--team-green); color: white; }
+
+/* 輪到誰的方環閃爍特效 - 🌟 利用 ::after 在名字框外圍創造一個方的環 */
 .active-turn {
-    border-color: var(--flame-red);
-    animation: flame-burn 1.5s infinite alternate;
-    box-shadow: 0 0 15px var(--flame-red);
-    transform: scale(1.1); font-weight: bold;
+    transform: scale(1.2); /* 本體稍微放大 */
 }
 
-@keyframes flame-burn {
-    0% { box-shadow: 0 0 5px var(--flame-red); }
-    100% { box-shadow: 0 0 20px var(--flame-orange); }
+.active-turn::after {
+    content: '';
+    position: absolute;
+    top: -5px; left: -5px; right: -5px; bottom: -5px; /* 🌟 往外推 5px，製造出名字框與環之間的空隙 */
+    border-radius: 10px; /* 🌟 維持方形圓角 */
+    border: 2px solid; /* 🌟 環的粗細設定為 2px */
+    animation: ring-blink 0.6s infinite alternate; /* 🌟 使用相同的 0.6秒閃爍動畫 */
 }
 
-/* --- 2. 桌面中心與戰場 --- */
-.center-field { 
-    grid-column: 2; grid-row: 2; 
-    border: 1px dashed rgba(255,255,255,0.05); 
-    margin: 20px; border-radius: 20px; 
-    display: flex; justify-content: center; align-items: center; 
-    position: relative; gap: 30px; 
+/* 為不同方位框的方環套用專屬顏色 */
+#label-top.active-turn::after { border-color: var(--team-red); }   /* 北家：紅環 */
+#label-bottom.active-turn::after { border-color: var(--team-blue); } /* 南家：藍環 */
+#label-left.active-turn::after { border-color: var(--team-yellow); }   /* 西家：黃環 */
+#label-right.active-turn::after { border-color: var(--team-green); } /* 東家：綠環 */
+
+/* 動畫設定維持原樣即可 */
+@keyframes ring-blink {
+    0% { opacity: 0; transform: scale(0.85); } /* 🌟 剛開始稍微內縮且透明 */
+    100% { opacity: 1; transform: scale(1); }  /* 🌟 出現時變回正常大小 */
+}
+
+
+/* --- 中央戰場：槽位排版 --- */
+.center-field {
+    grid-column: 2; grid-row: 2;
+    position: relative; /* 關鍵：讓內部的 slot 可以絕對定位 */
+    border: 1px dashed rgba(255,255,255,0.05);
+    margin: 20px; border-radius: 20px;
+}
+
+/* 每個槽位的共用樣式 (跟卡片一樣大) */
+.play-slot {
+    position: absolute;
+    width: 60px; height: 90px;
+    border: 1px dashed rgba(255,255,255,0.1); /* 隱約可以看到空位 */
+    border-radius: 6px;
+    display: flex; justify-content: center; align-items: center;
+}
+
+/* 🌟 定位各家的槽位：放在各家名字的前方 */
+.slot-north  { top: 5%; left: 50%; transform: translateX(-50%); }
+.slot-south  { bottom: 5%; left: 50%; transform: translateX(-50%); }
+.slot-west   { left: 40%; top: 50%; transform: translateY(-50%); }
+.slot-east   { right: 40%; top: 50%; transform: translateY(-50%); }
+
+/* 修正原本 table-card 的定位，讓它在 slot 裡面置中 */
+.table-card {
+    position: absolute;
+    margin: 0 !important;
+}
+
+/* 手機版適應：槽位縮小 */
+@media screen and (max-width: 900px) {
+    .play-slot { width: 40px; height: 60px; }
 }
 
 /* 打出來的牌的動畫特效 */
 .table-card { 
-    position: relative; 
+    position: absolute !important; 
+    top: 0; left: 0; margin: 0 !important;
     animation: card-drop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
 }
-@keyframes card-drop {
-    0% { transform: scale(1.5) translateY(-30px); opacity: 0; box-shadow: 0 20px 40px rgba(0,0,0,0.8); }
-    100% { transform: scale(1) translateY(0); opacity: 1; box-shadow: 2px 2px 8px rgba(0,0,0,0.5); }
-}
 
+/* 確保收牌動畫是「全螢幕置頂」 */
+.card.flying { 
+    transition: all 0.6s cubic-bezier(0.5, 0, 0.5, 1); 
+    position: fixed !important; 
+    z-index: 9999 !important; 
+    pointer-events: none;
+}
+@keyframes card-drop {
+    0% { transform: scale(1.5); opacity: 0; box-shadow: 0 20px 40px rgba(0,0,0,0.8); }
+    100% { transform: scale(1); opacity: 1; box-shadow: 2px 2px 8px rgba(0,0,0,0.5); }
+}
 .table-card::after {
     content: attr(data-playername); position: absolute; top: -35px; left: 50%; transform: translateX(-50%);
     background: rgba(0,0,0,0.85); color: var(--premium-gold); padding: 4px 10px; border-radius: 5px; font-size: 0.75rem;
@@ -89,9 +237,8 @@ body, html {
     100% { box-shadow: 0 0 25px var(--best-glow), inset 0 0 10px rgba(255,255,255,0.5); }
 }
 
-.card.flying { transition: all 0.6s cubic-bezier(0.5, 0, 0.5, 1); position: fixed; z-index: 1000 !important; }
 
-/* --- 3. 手牌區域 --- */
+/* --- 3. 手牌區域 (功能不變) --- */
 .hand-area { display: flex; justify-content: center; width: 100%; height: 100%; align-items: center; padding: 0 10px; box-sizing: border-box; }
 
 .card { 
@@ -113,24 +260,20 @@ body, html {
     filter: grayscale(100%); transform: translateY(15px); box-shadow: none;
 }
 
-/* --- 4. 狀態列與計分板 --- */
-.status-bar { 
-    position: absolute; top: 15px; left: 15px; background: rgba(0,0,0,0.8); padding: 12px; 
-    border-radius: 8px; font-size: 0.9rem; z-index: 100; border-left: 5px solid var(--premium-gold);
-    color: var(--text-soft); min-width: 200px; backdrop-filter: blur(5px);
-}
-#contract-display { color: var(--premium-gold); font-weight: bold; border-bottom: 1px dashed rgba(212, 175, 55, 0.4); padding-bottom: 8px; margin-bottom: 8px; }
-#score-display-teams { border-bottom: 1px dashed rgba(212, 175, 55, 0.4); padding-bottom: 8px; margin-bottom: 8px; line-height: 1.6; }
-.score-tag { color: var(--premium-gold); font-weight: bold; font-size: 1.1rem; }
-
-/* --- 5. 喊牌與勝利面板 --- */
+/* --- 5. 喊牌與勝利面板 (維持原樣) --- */
 #bidding-modal {
     position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
     background: linear-gradient(145deg, rgba(44, 62, 80, 0.95) 0%, rgba(26, 37, 47, 0.98) 100%);
     border: 1px solid rgba(212, 175, 55, 0.3); border-radius: 20px; padding: 25px; z-index: 2000; color: var(--text-soft); text-align: center;
     box-shadow: 0 25px 50px rgba(0,0,0,0.8); backdrop-filter: blur(15px); transition: all 0.8s cubic-bezier(0.25, 0.8, 0.25, 1); display: none;
+    width: 480px; max-width: 90vw; /* 確保面板不會縮水 */
 }
-.bid-grid { display: grid; grid-template-rows: repeat(5, 1fr); grid-template-columns: repeat(7, 1fr); gap: 8px; margin-bottom: 15px; }
+.bid-grid { 
+    display: grid; 
+    grid-template-rows: repeat(7, 1fr);   /* 7 橫列 */
+    grid-template-columns: repeat(5, 1fr); /* 5 直欄 */
+    gap: 8px; margin-bottom: 15px; 
+}
 .bid-btn { padding: 10px 5px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: white; border-radius: 8px; cursor: pointer; transition: 0.2s; }
 .bid-btn:disabled { opacity: 0.15; filter: grayscale(100%); }
 .pass-btn { width: 100%; background: linear-gradient(135deg, #c0392b, #8e44ad); border: none; padding: 12px; font-size: 1.1rem; border-radius: 10px; color: white; font-weight: bold; }
@@ -147,13 +290,14 @@ body, html {
 
 
 /* ========================================================= */
-/* 📱 1. 手機「直式 (Portrait)」徹底修復 (解決右邊被吃掉) */
+/* 📱 1. 手機「直式 (Portrait)」修正 (完美融合新導覽列) */
 /* ========================================================= */
 @media screen and (max-width: 900px) and (orientation: portrait) {
     .table-container { 
-        /* 改用 12% 百分比，絕對不會超出螢幕 */
         grid-template-columns: 12% 76% 12%; 
         grid-template-rows: 10dvh 1fr 22dvh; 
+        height: calc(100% - 50px); /* 手機版導覽列縮小為50px */
+        margin-top: 50px;
     }
 
     .pos-left .player-info, .pos-right .player-info { 
@@ -162,7 +306,6 @@ body, html {
 
     .center-field { margin: 10px 2%; gap: 10px; }
 
-    /* 手牌區寬度 100%，牌大小按比例縮放 */
     .hand-area { width: 100%; padding: 0; }
     .card { 
         width: 11.5vw; max-width: 48px;
@@ -173,7 +316,11 @@ body, html {
     .card.selected { transform: translateY(-4dvh) scale(1.1) !important; }
     .card.disabled { transform: translateY(2dvh); }
 
-    .status-bar { top: 5px; left: 5px; padding: 8px; font-size: 0.65rem; min-width: 125px; }
+    /* 針對新版導覽列的直向手機微調 */
+    .top-nav-bar { height: 50px; padding: 0 5px; }
+    .team-info { font-size: 0.8rem; }
+    .team-text { font-size: 1rem; margin-left: 2px; }
+    .game-status { font-size: 0.8rem; gap: 5px; }
     
     #bidding-modal { width: 95vw; padding: 15px; border-radius: 12px; box-sizing: border-box; }
     .bid-grid { gap: 3px; }
@@ -186,20 +333,20 @@ body, html {
 }
 
 /* ========================================================= */
-/* 📱 2. 手機「橫式 (Landscape)」徹底修復 (解決上面被吃掉) */
+/* 📱 2. 手機「橫式 (Landscape)」修正 (完美融合新導覽列) */
 /* ========================================================= */
 @media screen and (max-height: 600px) and (orientation: landscape) {
     .table-container { 
-        /* 高度被極度壓縮，上方只留 60px 給對手，下方留 85px 給手牌 */
         grid-template-columns: 80px 1fr 80px; 
         grid-template-rows: 60px 1fr 85px; 
+        height: calc(100% - 40px); /* 橫向手機導覽列縮得更扁 */
+        margin-top: 40px;
     }
 
     .player-info { padding: 4px 6px; font-size: 0.7rem; margin: 2px; }
     .center-field { margin: 5px; gap: 10px; }
 
     .card { 
-        /* 橫式手機螢幕寬度很夠，但「高度」不夠，所以卡片要根據高度 (vh) 縮放 */
         width: 35px; height: 55px; 
         margin-left: -15px; 
         font-size: 0.75rem; padding: 2px;
@@ -207,7 +354,10 @@ body, html {
     .card.selected { transform: translateY(-15px) scale(1.1) !important; }
     .card.disabled { transform: translateY(8px); }
 
-    .status-bar { top: 2px; left: 2px; padding: 6px; font-size: 0.65rem; min-width: 110px; }
+    /* 針對新版導覽列的橫向手機微調 */
+    .top-nav-bar { height: 40px; padding: 0 10px; }
+    .team-text { font-size: 1rem; margin-left: 5px; }
+    .game-status { font-size: 0.85rem; gap: 10px; }
     
     #bidding-modal { width: 85vw; max-width: 500px; padding: 10px 15px; }
     .bid-btn { padding: 6px 2px; font-size: 0.8rem; }
