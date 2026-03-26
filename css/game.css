@@ -201,10 +201,10 @@ body, html {
 /* 手機版適應：槽位縮小 */
 @media screen and (max-width: 900px) {
     .play-slot { width: 40px; height: 60px; }
-    .slot-north  { top: 5%; left: 50%; transform: translateX(-50%); }
-    .slot-south  { bottom: 5%; left: 50%; transform: translateX(-50%); }
-    .slot-west   { left: 20%; top: 50%; transform: translateY(-50%); }
-    .slot-east   { right: 20%; top: 50%; transform: translateY(-50%); }
+    .slot-north  { top: 20%; left: 50%; transform: translateX(-50%); }
+    .slot-south  { bottom: 20%; left: 50%; transform: translateX(-50%); }
+    .slot-west   { left: 30%; top: 50%; transform: translateY(-50%); }
+    .slot-east   { right: 30%; top: 50%; transform: translateY(-50%); }
 }
 
 /* 打出來的牌的動畫特效 */
