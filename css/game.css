@@ -201,6 +201,10 @@ body, html {
 /* 手機版適應：槽位縮小 */
 @media screen and (max-width: 900px) {
     .play-slot { width: 40px; height: 60px; }
+    .slot-north  { top: 5%; left: 50%; transform: translateX(-50%); }
+    .slot-south  { bottom: 5%; left: 50%; transform: translateX(-50%); }
+    .slot-west   { left: 20%; top: 50%; transform: translateY(-50%); }
+    .slot-east   { right: 20%; top: 50%; transform: translateY(-50%); }
 }
 
 /* 打出來的牌的動畫特效 */
@@ -260,19 +264,35 @@ body, html {
     filter: grayscale(100%); transform: translateY(15px); box-shadow: none;
 }
 
-/* --- 5. 喊牌與勝利面板 (維持原樣) --- */
+/* --- 5. 喊牌與勝利面板 --- */
 #bidding-modal {
     position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
     background: linear-gradient(145deg, rgba(44, 62, 80, 0.95) 0%, rgba(26, 37, 47, 0.98) 100%);
-    border: 1px solid rgba(212, 175, 55, 0.3); border-radius: 20px; padding: 25px; z-index: 2000; color: var(--text-soft); text-align: center;
-    box-shadow: 0 25px 50px rgba(0,0,0,0.8); backdrop-filter: blur(15px); transition: all 0.8s cubic-bezier(0.25, 0.8, 0.25, 1); display: none;
-    width: 480px; max-width: 90vw; /* 確保面板不會縮水 */
+    border: 1px solid rgba(212, 175, 55, 0.3); border-radius: 20px; padding: 20px; z-index: 2000; 
+    color: var(--text-soft); text-align: center;
+    box-shadow: 0 25px 50px rgba(0,0,0,0.8); backdrop-filter: blur(15px);
+    width: 340px; 
+    max-width: 85vw;
 }
+
+#bidding-history {
+    /* 🌟 核心修改：允許內容換行並置中 */
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    gap: 8px; /* 標籤與箭頭之間的間距 */
+    margin-bottom: 25px; /* 與下方按鈕的間距 */
+    line-height: 2; /* 換行後行距才不會太擠 */
+}
+
+/* 為了配合縮窄的面板，微調按鈕間距 */
 .bid-grid { 
     display: grid; 
-    grid-template-rows: repeat(7, 1fr);   /* 7 橫列 */
-    grid-template-columns: repeat(5, 1fr); /* 5 直欄 */
-    gap: 8px; margin-bottom: 15px; 
+    grid-template-rows: repeat(7, 1fr);
+    grid-template-columns: repeat(5, 1fr);
+    gap: 6px; /* 間距稍微縮小一點點 */
+    margin-bottom: 15px; 
 }
 .bid-btn { padding: 10px 5px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: white; border-radius: 8px; cursor: pointer; transition: 0.2s; }
 .bid-btn:disabled { opacity: 0.15; filter: grayscale(100%); }
@@ -322,7 +342,7 @@ body, html {
     .team-text { font-size: 1rem; margin-left: 2px; }
     .game-status { font-size: 0.8rem; gap: 5px; }
     
-    #bidding-modal { width: 95vw; padding: 15px; border-radius: 12px; box-sizing: border-box; }
+    #bidding-modal { width: 65vw; padding: 15px; border-radius: 12px; box-sizing: border-box; }
     .bid-grid { gap: 3px; }
     .bid-btn { padding: 8px 1px; font-size: 0.8rem; border-radius: 4px; }
     
