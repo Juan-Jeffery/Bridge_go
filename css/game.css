@@ -276,7 +276,6 @@ body, html {
 }
 
 #bidding-history {
-    /* 🌟 核心修改：允許內容換行並置中 */
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
