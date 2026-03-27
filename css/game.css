@@ -275,10 +275,10 @@ body, html {
 
     /* 🌟 手機直式：槽位大小與位置校正 */
     .play-slot { width: 40px !important; height: 60px !important; }
-    .slot-north  { top: 2% !important; left: 50% !important; transform: translateX(-50%); }
-    .slot-south  { bottom: 2% !important; left: 50% !important; transform: translateX(-50%); }
-    .slot-west   { left: 5% !important; top: 50% !important; transform: translateY(-50%); }
-    .slot-east   { right: 5% !important; top: 50% !important; transform: translateY(-50%); }
+    .slot-north  { top: 15% !important; left: 50% !important; transform: translateX(-50%); }
+    .slot-south  { bottom: 15% !important; left: 50% !important; transform: translateX(-50%); }
+    .slot-west   { left: 30% !important; top: 50% !important; transform: translateY(-50%); }
+    .slot-east   { right: 30% !important; top: 50% !important; transform: translateY(-50%); }
 
     .hand-area { 
         width: 100%; padding: 0; 
@@ -308,34 +308,3 @@ body, html {
     .victory-buttons { flex-direction: column; gap: 12px; }
     .btn-action { width: 100%; }
 }
-
-/* ========================================================= */
-/* 📱 9. 響應式：手機「橫式 (Landscape)」修正 */
-/* ========================================================= */
-@media screen and (max-height: 600px) and (orientation: landscape) {
-    .table-container { 
-        grid-template-columns: 80px 1fr 80px; 
-        grid-template-rows: 60px 1fr 85px; 
-        height: calc(100% - 40px); margin-top: 40px;
-    }
-    .player-info { padding: 4px 6px; font-size: 0.7rem; margin: 2px; }
-    .center-field { margin: 5px; gap: 10px; }
-
-    /* 🌟 手機橫式：槽位大小與位置校正 */
-    .play-slot { width: 40px !important; height: 55px !important; }
-    .slot-north  { top: 0% !important; left: 50% !important; transform: translateX(-50%); }
-    .slot-south  { bottom: 0% !important; left: 50% !important; transform: translateX(-50%); }
-    .slot-west   { left: 15% !important; top: 50% !important; transform: translateY(-50%); }
-    .slot-east   { right: 15% !important; top: 50% !important; transform: translateY(-50%); }
-
-    /* 手牌校正 */
-    .card { width: 35px; height: 55px; margin-left: -15px; font-size: 0.75rem; padding: 2px; }
-    .card.selected { transform: translateY(-15px) scale(1.1) !important; }
-    .card.disabled { transform: translateY(8px); }
-
-    /* 導覽列與彈窗微調 */
-    .top-nav-bar { height: 40px; padding: 0 10px; }
-    .team-text { font-size: 1rem; margin-left: 5px; }
-    .game-status { font-size: 0.85rem; gap: 10px; }
-    
-    #bidding-modal { width

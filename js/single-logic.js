@@ -207,7 +207,7 @@ function renderBiddingUI() {
         let maxColor = getPlayerColor(currentBiddingState.currentBid.name); 
         let level = currentBiddingState.currentBid.level;
         let suit = currentBiddingState.currentBid.suit;
-        contractDisplay.innerHTML = `喊牌中... <span style="color: #ccc; margin: 0 10px; font-weight: 300;">|</span> 目前最高: <span style="color: ${maxColor}; font-weight: bold; font-size: 1.3rem; margin-left: 5px;">${level}${suit}</span>`;
+        contractDisplay.innerHTML = `喊牌中... <span style="color: #ccc; margin: 0 10px; font-weight: 300;">|<span style="color: ${maxColor}; font-weight: bold; font-size: 1.3rem; margin-left: 5px;">${level}${suit}</span>`;
     } else {
         contractDisplay.innerHTML = "喊牌中...";
     }
@@ -574,8 +574,8 @@ function updateScoreboardUI() {
     const nsEl = document.getElementById('score-ns-text');
     const ewEl = document.getElementById('score-ew-text');
     
-    if (nsEl) nsEl.innerHTML = `team ${scores.ns || 0}/${nsT}`;
-    if (ewEl) ewEl.innerHTML = `team ${scores.ew || 0}/${ewT}`;
+    if (nsEl) nsEl.innerHTML = ` ${scores.ns || 0}/${nsT}`;
+    if (ewEl) ewEl.innerHTML = ` ${scores.ew || 0}/${ewT}`;
 }
 
 function updateContractUI(contract) {
@@ -585,7 +585,7 @@ function updateContractUI(contract) {
     const colorHexMap = { 'south': '#5470c6', 'west': '#fbd347', 'north': '#b32e2e', 'east': '#628e46' };
     const cColor = colorHexMap[contract.declarer] || '#333';
     
-    displayEl.innerHTML = `Final: <span style="color: ${cColor}; font-size: 1.3rem; font-weight: 900; text-shadow: 1px 1px 0px rgba(255,255,255,0.5); margin-left: 5px;">${contract.level}${contract.suit}</span>`;
+    displayEl.innerHTML = `<span style="color: ${cColor}; font-size: 1.3rem; font-weight: 900; text-shadow: 1px 1px 0px rgba(255,255,255,0.5); margin-left: 5px;">${contract.level}${contract.suit}</span>`;
 }
 
 function updatePersonalTrickPiles() {
