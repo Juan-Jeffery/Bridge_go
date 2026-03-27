@@ -1,5 +1,5 @@
 // ==========================================
-// 橋牌單人模式 - 核心邏輯腳本 (專業競技優化版)
+// 橋牌單人模式 - 核心邏輯腳本 (專業競技優化版 + Wi-Fi燒線)
 // ==========================================
 
 // --- 1. 全域變數與遊戲狀態 ---
@@ -12,6 +12,7 @@ const currentPlayersData = {
     east: { name: "電腦 (東)" }
 };
 
+let trickHistory = []; // 🌟 用來記錄每一墩出牌順序與贏家的歷史簿
 let hands = { south: [], west: [], north: [], east: [] };
 let tableCards = {}; // 記錄桌面上打出的牌
 let currentBiddingState = null; 
@@ -21,6 +22,10 @@ let personalScores = { south: 0, west: 0, north: 0, east: 0 };
 let selectedCardIndex = -1;
 let isRendering = false;
 let gameFinished = false;
+
+// 🌟 全域計時與狀態變數
+let turnTimerInterval = null; 
+let isGamePaused = false; // 修復：新增暫停狀態變數
 
 // --- 2. 遊戲初始化與洗牌 ---
 function initializeGame() {
@@ -51,12 +56,13 @@ function setupNewDeck() {
     scores = { ns: 0, ew: 0 };
     personalScores = { south: 0, west: 0, north: 0, east: 0 };
     tableCards = {};
+    trickHistory = [];
     updateScoreboardUI();
     updatePersonalTrickPiles();
     
     currentBiddingState = {
         status: "active", turn: "south", currentBid: null, passCount: 0, history: [], contract: null,
-        botHasBidded: { west: false, north: false, east: false } // 記錄電腦是否已經喊過牌
+        botHasBidded: { west: false, north: false, east: false } 
     };
     
     setTurn("south");
@@ -92,60 +98,37 @@ function setTurn(nextRole) {
 const suitRanks = { '♣': 1, '♦': 2, '♥': 3, '♠': 4, 'NT': 5 };
 
 function botBid(botRole) {
-    // 條件一：如果這局電腦已經喊過牌了，之後一律 Pass
     if (currentBiddingState.botHasBidded[botRole]) {
-        submitBid('Pass', null, botRole);
-        return;
+        submitBid('Pass', null, botRole); return;
     }
-
     let botHand = hands[botRole];
     let suitCounts = { '♠': 0, '♥': 0, '♦': 0, '♣': 0 };
     botHand.forEach(card => suitCounts[card.s]++);
     
-    // 找出最多的花色
     let bestSuit = '♣', maxCount = 0;
-    for (let s in suitCounts) {
-        if (suitCounts[s] > maxCount) { maxCount = suitCounts[s]; bestSuit = s; }
-    }
+    for (let s in suitCounts) { if (suitCounts[s] > maxCount) { maxCount = suitCounts[s]; bestSuit = s; } }
 
-    let targetLevel = 1;
-    let canBid = true;
+    let targetLevel = 1, canBid = true;
 
-    // 判斷目前最高出價
     if (currentBiddingState.currentBid) {
         let curLevel = currentBiddingState.currentBid.level;
         let curSuitRank = suitRanks[currentBiddingState.currentBid.suit];
         let mySuitRank = suitRanks[bestSuit];
 
-        if (curLevel >= 2 && (curLevel > 2 || mySuitRank <= curSuitRank)) {
-            canBid = false; // 合約太大壓不過，Pass
-        } else if (curLevel === 1) {
-            targetLevel = (mySuitRank > curSuitRank) ? 1 : 2;
-        } else if (curLevel === 2) {
-            if (mySuitRank > curSuitRank) targetLevel = 2;
-            else canBid = false;
-        }
+        if (curLevel >= 2 && (curLevel > 2 || mySuitRank <= curSuitRank)) canBid = false; 
+        else if (curLevel === 1) targetLevel = (mySuitRank > curSuitRank) ? 1 : 2;
+        else if (curLevel === 2) { if (mySuitRank > curSuitRank) targetLevel = 2; else canBid = false; }
     }
 
-    if (canBid) {
-        currentBiddingState.botHasBidded[botRole] = true;
-        submitBid(targetLevel, bestSuit, botRole);
-    } else {
-        submitBid('Pass', null, botRole);
-    }
+    if (canBid) { currentBiddingState.botHasBidded[botRole] = true; submitBid(targetLevel, bestSuit, botRole); } 
+    else submitBid('Pass', null, botRole);
 }
 
 function botPlay(botRole) {
     let botHand = hands[botRole];
     if (botHand.length === 0) return;
-
     let leadSuit = Object.keys(tableCards).length > 0 ? Object.values(tableCards)[0].s : null;
-    let validCards = botHand;
-
-    // 必須跟隨引牌花色
-    if (leadSuit && botHand.some(c => c.s === leadSuit)) {
-        validCards = botHand.filter(c => c.s === leadSuit);
-    }
+    let validCards = (leadSuit && botHand.some(c => c.s === leadSuit)) ? botHand.filter(c => c.s === leadSuit) : botHand;
 
     let chosenCard = validCards[Math.floor(Math.random() * validCards.length)];
     let cardIndex = botHand.indexOf(chosenCard);
@@ -153,8 +136,7 @@ function botPlay(botRole) {
     hands[botRole].splice(cardIndex, 1);
     tableCards[botRole] = { from: botRole, playerName: currentPlayersData[botRole].name, ...chosenCard };
     
-    renderTable();
-    checkTableFull();
+    renderTable(); checkTableFull();
 }
 
 // ==========================================
@@ -171,8 +153,6 @@ function renderBiddingUI() {
     modal.style.display = "block"; modal.classList.remove('fly-to-top-left');
 
     const historyDiv = document.getElementById('bidding-history');
-    
-    // 玩家名字轉隊伍顏色
     const getPlayerColor = (name) => {
         if (name.includes("你") || name.includes("南")) return "#5470c6"; 
         if (name.includes("西")) return "#fbd347"; 
@@ -181,38 +161,27 @@ function renderBiddingUI() {
         return "white";
     };
 
-    // 建立大富翁地盤顏色表
     const bidColorsMap = {};
     currentBiddingState.history.forEach(item => {
         let parts = item.split(': ');
-        if (parts.length >= 2 && parts[1] !== "Pass") {
-            bidColorsMap[parts[1]] = getPlayerColor(parts[0]);
-        }
+        if (parts.length >= 2 && parts[1] !== "Pass") bidColorsMap[parts[1]] = getPlayerColor(parts[0]);
     });
 
-    // 渲染上方歷史紀錄 (只取最後 3 個，超過自動消失)
     let historyHtmlItems = currentBiddingState.history.slice(-3).map(item => {
-        let parts = item.split(': ');
-        let color = getPlayerColor(parts[0]);
+        let parts = item.split(': '); let color = getPlayerColor(parts[0]);
         return `<span style="color: ${color}; font-size: 1.3rem; font-weight: bold; background: rgba(0,0,0,0.3); padding: 4px 10px; border-radius: 8px;">${parts[1]}</span>`;
     });
 
-    let historyText = historyHtmlItems.length > 0 ? historyHtmlItems.join(' <span style="color: #95a5a6; font-size: 1.2rem;">➔</span> ') : "請開始喊牌";
-    historyDiv.innerHTML = historyText;
+    historyDiv.innerHTML = historyHtmlItems.length > 0 ? historyHtmlItems.join(' <span style="color: #95a5a6; font-size: 1.2rem;">➔</span> ') : "請開始喊牌";
     historyDiv.style.marginBottom = "25px";
 
-    // 更新左上角最高出價 (無框純文字 + 玩家專屬顏色)
     const contractDisplay = document.getElementById('contract-display');
     if (currentBiddingState.currentBid) {
         let maxColor = getPlayerColor(currentBiddingState.currentBid.name); 
-        let level = currentBiddingState.currentBid.level;
-        let suit = currentBiddingState.currentBid.suit;
+        let level = currentBiddingState.currentBid.level, suit = currentBiddingState.currentBid.suit;
         contractDisplay.innerHTML = `喊牌中... <span style="color: #ccc; margin: 0 10px; font-weight: 300;">|<span style="color: ${maxColor}; font-weight: bold; font-size: 1.3rem; margin-left: 5px;">${level}${suit}</span>`;
-    } else {
-        contractDisplay.innerHTML = "喊牌中...";
-    }
+    } else contractDisplay.innerHTML = "喊牌中...";
     
-    // 生成 35 顆喊牌按鈕
     const isMyTurn = (currentBiddingState.turn === myRole);    
     const container = document.getElementById('bid-buttons-container'); container.innerHTML = "";
     const suits = ['♣', '♦', '♥', '♠', 'NT'];
@@ -221,25 +190,19 @@ function renderBiddingUI() {
         suits.forEach(suit => {
             const btn = document.createElement('button'); btn.className = 'bid-btn';
             const bidStr = `${level}${suit}`; 
-            
             btn.innerHTML = `${level}<span style="color:${(suit==='♥'||suit==='♦')?'#e74c3c':'white'}">${suit}</span>`;
             
-            // 判斷是否鎖定
             let isDisabled = !isMyTurn;
             if (currentBiddingState.currentBid) {
-                const currentLevel = currentBiddingState.currentBid.level;
-                const currentSuitRank = suitRanks[currentBiddingState.currentBid.suit];
-                if (level < currentLevel || (level === currentLevel && suitRanks[suit] <= currentSuitRank)) isDisabled = true;
+                const curLevel = currentBiddingState.currentBid.level, curRank = suitRanks[currentBiddingState.currentBid.suit];
+                if (level < curLevel || (level === curLevel && suitRanks[suit] <= curRank)) isDisabled = true;
             }
             btn.disabled = isDisabled; 
 
-            // 如果被喊過，佔領地盤上色 (解除灰階濾鏡)
             if (bidColorsMap[bidStr]) {
                 let playerColor = bidColorsMap[bidStr];
-                btn.style.backgroundColor = playerColor;
-                btn.style.filter = "none";
-                btn.style.opacity = "0.85"; 
-                btn.style.border = "none";
+                btn.style.backgroundColor = playerColor; btn.style.filter = "none";
+                btn.style.opacity = "0.85"; btn.style.border = "none";
                 btn.style.color = (playerColor === "#fbd347") ? "black" : "white"; 
                 btn.innerHTML = `${level}<span style="color:${(playerColor === '#fbd347') ? 'black' : 'white'}">${suit}</span>`;
             }
@@ -253,21 +216,13 @@ function renderBiddingUI() {
 
 function submitBid(level, suit, actorRole = myRole) {
     if (currentBiddingState.turn !== actorRole) return;
-    
-    let actorName = currentPlayersData[actorRole].name;
-    let nextRole = roles[(roles.indexOf(actorRole) + 1) % 4];
+    let actorName = currentPlayersData[actorRole].name, nextRole = roles[(roles.indexOf(actorRole) + 1) % 4];
 
     if (level === 'Pass') {
-        currentBiddingState.history.push(`${actorName}: Pass`);
-        currentBiddingState.passCount++;
-        
-        if (currentBiddingState.currentBid && currentBiddingState.passCount === 3) {
-            finishBidding(currentBiddingState.currentBid);
-        } else if (!currentBiddingState.currentBid && currentBiddingState.passCount === 4) {
-            alert("四家 Pass，重新發牌！"); setupNewDeck();
-        } else {
-            setTurn(nextRole);
-        }
+        currentBiddingState.history.push(`${actorName}: Pass`); currentBiddingState.passCount++;
+        if (currentBiddingState.currentBid && currentBiddingState.passCount === 3) finishBidding(currentBiddingState.currentBid);
+        else if (!currentBiddingState.currentBid && currentBiddingState.passCount === 4) { alert("四家 Pass，重新發牌！"); setupNewDeck(); } 
+        else setTurn(nextRole);
     } else {
         currentBiddingState.history.push(`${actorName}: ${level}${suit}`);
         currentBiddingState.passCount = 0;
@@ -277,75 +232,54 @@ function submitBid(level, suit, actorRole = myRole) {
 }
 
 function finishBidding(winningBid) {
-    const declarer = winningBid.player;
     currentBiddingState.contract = {
-        level: winningBid.level, suit: winningBid.suit, declarer: declarer,
-        declarerName: winningBid.name, team: (declarer === 'south' || declarer === 'north') ? 'NS' : 'EW',
+        level: winningBid.level, suit: winningBid.suit, declarer: winningBid.player,
+        declarerName: winningBid.name, team: (winningBid.player === 'south' || winningBid.player === 'north') ? 'NS' : 'EW',
         targetTricks: winningBid.level + 6
     };
     currentBiddingState.status = "finished";
     
-    updateScoreboardUI();
-    updatePersonalTrickPiles();
-    renderBiddingUI(); 
-    
-    let firstLead = roles[(roles.indexOf(declarer) + 1) % 4];
-    setTurn(firstLead);
+    updateScoreboardUI(); updatePersonalTrickPiles(); renderBiddingUI(); 
+    setTurn(roles[(roles.indexOf(winningBid.player) + 1) % 4]);
 }
 
 // ==========================================
-// 🃏 出牌桌面與打牌邏輯 (新增：花色間隙與動態寬度)
+// 🃏 出牌桌面與打牌邏輯
 // ==========================================
 function renderHand() {
     if (isRendering) return; isRendering = true;
     const container = document.getElementById('my-hand'); container.innerHTML = "";
     
-    let myHand = hands[myRole];
-    let cardsOnTable = Object.values(tableCards);
+    let myHand = hands[myRole], cardsOnTable = Object.values(tableCards);
     const leadSuit = cardsOnTable.length > 0 ? cardsOnTable[0].s : null;
     const hasLeadSuit = leadSuit ? myHand.some(c => c.s === leadSuit) : false;
     
-    // 🌟 核心 1：計算手牌擁擠比例。13張=1.0，越少越鬆散，最寬鬆限制在 0.2
     let factor = Math.max(0.2, myHand.length / 13);
     container.style.setProperty('--card-count-factor', factor);
 
-    let previousSuit = null; // 用來記錄上一張牌的花色
+    let previousSuit = null; 
 
     myHand.forEach((card, index) => {
         const div = document.createElement('div');
         let isBidding = (!currentBiddingState || currentBiddingState.status !== "finished");
         let isWrongSuit = (leadSuit && hasLeadSuit && card.s !== leadSuit);
-        let isVisuallyDisabled = (!isBidding && isWrongSuit);
-        let isClickDisabled = isBidding || isWrongSuit;
-        
-        // 🌟 核心 2：判斷是否跟上一張牌花色不同 (換花色了)
+        let isVisuallyDisabled = (!isBidding && isWrongSuit), isClickDisabled = isBidding || isWrongSuit;
         let isSuitChange = (previousSuit && previousSuit !== card.s);
-        previousSuit = card.s; // 記錄當下這張牌的花色給下一張用
+        previousSuit = card.s; 
         
-        // 加上 suit-gap 標籤
         div.className = `card ${(card.s === '♥' || card.s === '♦') ? 'red' : ''} ${isVisuallyDisabled ? 'disabled' : ''} ${index === selectedCardIndex ? 'selected' : ''} ${isSuitChange ? 'suit-gap' : ''}`;
-        
-        div.style.zIndex = index; 
-        div.innerHTML = `${card.v}<span>${card.s}</span>`;
+        div.style.zIndex = index; div.innerHTML = `${card.v}<span>${card.s}</span>`;
         
         div.onclick = (e) => {
             e.stopPropagation();
-            
             if (currentTurnGlobally !== myRole || isClickDisabled) return;
             
             if (selectedCardIndex === index) { 
                 selectedCardIndex = -1; 
                 let playedCard = hands[myRole].splice(index, 1)[0]; 
                 tableCards[myRole] = { from: myRole, playerName: "你", ...playedCard };
-                isRendering = false;
-                renderHand(); 
-                renderTable(); 
-                checkTableFull(); 
-            } else { 
-                selectedCardIndex = index; 
-                isRendering = false;
-                renderHand(); 
-            }
+                isRendering = false; renderHand(); renderTable(); checkTableFull(); 
+            } else { selectedCardIndex = index; isRendering = false; renderHand(); }
         };
         container.appendChild(div);
     });
@@ -353,87 +287,58 @@ function renderHand() {
 }
 
 function renderTable() {
-    // 取得四個專屬槽位
-    const slots = {
-        north: document.getElementById('slot-north'),
-        south: document.getElementById('slot-south'),
-        west: document.getElementById('slot-west'),
-        east: document.getElementById('slot-east')
-    };
+    const slots = { north: document.getElementById('slot-north'), south: document.getElementById('slot-south'), west: document.getElementById('slot-west'), east: document.getElementById('slot-east') };
+    if (Object.keys(tableCards).length === 0) { Object.values(slots).forEach(slot => { if (slot) slot.innerHTML = ""; }); return; }
 
-    // 🌟 修改 1：只有在「桌上完全沒牌」時(例如收牌後)，才清空槽位
-    if (Object.keys(tableCards).length === 0) {
-        Object.values(slots).forEach(slot => { if (slot) slot.innerHTML = ""; });
-        return;
-    }
-
-    // 找出最強的牌 (判斷發光)
     const cardsArray = Object.values(tableCards);
-    const leadSuit = cardsArray[0].s;
-    const trumpSuit = (currentBiddingState && currentBiddingState.contract && currentBiddingState.contract.suit !== 'NT') ? currentBiddingState.contract.suit : null;
+    const leadSuit = cardsArray[0].s, trumpSuit = (currentBiddingState && currentBiddingState.contract && currentBiddingState.contract.suit !== 'NT') ? currentBiddingState.contract.suit : null;
     const vals = {'A':14, 'K':13, 'Q':12, 'J':11, '10':10, '9':9, '8':8, '7':7, '6':6, '5':5, '4':4, '3':3, '2':2};
     
     let bestCard = cardsArray[0];
     cardsArray.forEach(c => {
-        let isCurrentTrump = (c.s === trumpSuit);
-        let isBestTrump = (bestCard.s === trumpSuit);
-        if (isCurrentTrump && !isBestTrump) bestCard = c;
-        else if (isCurrentTrump && isBestTrump) { if(vals[c.v] > vals[bestCard.v]) bestCard = c; }
-        else if (!isCurrentTrump && !isBestTrump && c.s === leadSuit && bestCard.s === leadSuit) {
-            if(vals[c.v] > vals[bestCard.v]) bestCard = c;
-        }
+        let isCT = (c.s === trumpSuit), isBT = (bestCard.s === trumpSuit);
+        if (isCT && !isBT) bestCard = c;
+        else if (isCT && isBT) { if(vals[c.v] > vals[bestCard.v]) bestCard = c; }
+        else if (!isCT && !isBT && c.s === leadSuit && bestCard.s === leadSuit) { if(vals[c.v] > vals[bestCard.v]) bestCard = c; }
     });
 
-    // 🌟 修改 2：智慧渲染卡片到對應槽位 (解決抖動的核心)
     Object.entries(tableCards).forEach(([role, data]) => {
-        const targetSlot = slots[role]; 
-        if (!targetSlot) return;
-
+        const targetSlot = slots[role]; if (!targetSlot) return;
         const isBest = (data.v === bestCard.v && data.s === bestCard.s);
-        
-        // 檢查這個槽位是不是已經有牌了
         let existingCard = targetSlot.querySelector('.table-card');
 
         if (!existingCard) {
-            // 👉 如果槽位是空的：這是一張「剛打出來的新牌」，建立它並觸發掉落動畫
             const cardDiv = document.createElement('div');
             cardDiv.className = `card table-card ${(data.s === '♥' || data.s === '♦') ? 'red' : ''} ${isBest ? 'best-card' : ''}`;
-            cardDiv.innerHTML = `${data.v}<span>${data.s}</span>`;
-            targetSlot.appendChild(cardDiv);
-        } else {
-            // 👉 如果槽位已經有牌了：它是一張「舊牌」，我們只更新 CSS 讓它發光或熄滅
-            // 絕對不破壞它的 HTML 結構，這樣 CSS 動畫就不會重新觸發！
-            existingCard.className = `card table-card ${(data.s === '♥' || data.s === '♦') ? 'red' : ''} ${isBest ? 'best-card' : ''}`;
-        }
+            cardDiv.innerHTML = `${data.v}<span>${data.s}</span>`; targetSlot.appendChild(cardDiv);
+        } else existingCard.className = `card table-card ${(data.s === '♥' || data.s === '♦') ? 'red' : ''} ${isBest ? 'best-card' : ''}`;
     });
 }
 
 function checkTableFull() {
-    if (Object.keys(tableCards).length === 4) { 
-        setTurn("waiting"); 
-        setTimeout(resolveTrick, 2000); 
-    } else {
-        let nextRole = roles[(roles.indexOf(currentTurnGlobally) + 1) % 4];
-        setTurn(nextRole);
-    }
+    if (Object.keys(tableCards).length === 4) { setTurn("waiting"); setTimeout(resolveTrick, 2000); } 
+    else setTurn(roles[(roles.indexOf(currentTurnGlobally) + 1) % 4]);
 }
 
 function resolveTrick() {
-    const cardsArray = Object.values(tableCards);
-    const leadSuit = cardsArray[0].s; 
+    const cardsArray = Object.values(tableCards), leadSuit = cardsArray[0].s; 
     const trumpSuit = currentBiddingState.contract.suit !== 'NT' ? currentBiddingState.contract.suit : null;
     const vals = {'A':14, 'K':13, 'Q':12, 'J':11, '10':10, '9':9, '8':8, '7':7, '6':6, '5':5, '4':4, '3':3, '2':2};
     
     let winner = cardsArray[0]; 
     cardsArray.forEach(c => { 
-        let isCurrentT = (c.s === trumpSuit); let isBestT = (winner.s === trumpSuit);
-        if (isCurrentT && !isBestT) winner = c;
-        else if (isCurrentT && isBestT) { if (vals[c.v] > vals[winner.v]) winner = c; }
-        else if (!isCurrentT && !isBestT && c.s === leadSuit && winner.s === leadSuit) { 
-            if (vals[c.v] > vals[winner.v]) winner = c; 
-        }
-    });
+        let isCT = (c.s === trumpSuit), isBT = (winner.s === trumpSuit);
+        if (isCT && !isBT) winner = c;
+        else if (isCT && isBT) { if (vals[c.v] > vals[winner.v]) winner = c; }
+        else if (!isCT && !isBT && c.s === leadSuit && winner.s === leadSuit) { if (vals[c.v] > vals[winner.v]) winner = c; }
+    }); // 修復：補上這裡遺漏的括號！
 
+    // 修復：將 trickHistory 移出迴圈外，確保只記錄一次
+    trickHistory.push({
+        winnerRole: winner.from,
+        cards: cardsArray.map(c => ({ role: c.from, suit: c.s, val: c.v }))
+    });
+    
     playTrickAnimation(winner.from);
 }
 
@@ -441,139 +346,191 @@ function resolveTrick() {
 // 🚀 特效與動畫 (霸氣吃墩結算版)
 // ==========================================
 function playTrickAnimation(winnerRole) {
-    const phantomCards = [];
-    const myIdx = roles.indexOf(myRole);
-    const posMap = ['bottom', 'left', 'top', 'right'];
+    const phantomCards = [], myIdx = roles.indexOf(myRole), posMap = ['bottom', 'left', 'top', 'right'];
     const winnerPos = posMap[(roles.indexOf(winnerRole) - myIdx + 4) % 4];
-    
-    // 目標：贏家的名字框 (計牌區)
     const winnerLabel = document.getElementById(`label-${winnerPos}`); 
     if (!winnerLabel) return;
     const destRect = winnerLabel.getBoundingClientRect();
 
-    // 1. 收集四個方位的牌並製作「幻影牌」
     roles.forEach(role => {
-        const slot = document.getElementById(`slot-${role}`);
-        const cardEl = slot ? slot.querySelector('.table-card') : null;
-        
+        const slot = document.getElementById(`slot-${role}`), cardEl = slot ? slot.querySelector('.table-card') : null;
         if (cardEl) {
-            const startRect = cardEl.getBoundingClientRect();
-            const flyingCard = cardEl.cloneNode(true);
+            const startRect = cardEl.getBoundingClientRect(), flyingCard = cardEl.cloneNode(true);
+            flyingCard.classList.remove('table-card', 'best-card'); flyingCard.classList.add('flying');
             
-            flyingCard.classList.remove('table-card', 'best-card');
-            flyingCard.classList.add('flying');
-            
-            // 鎖定初始絕對座標
-            flyingCard.style.left = startRect.left + 'px';
-            flyingCard.style.top = startRect.top + 'px';
-            flyingCard.style.width = startRect.width + 'px';
-            flyingCard.style.height = startRect.height + 'px';
+            flyingCard.style.left = startRect.left + 'px'; flyingCard.style.top = startRect.top + 'px';
+            flyingCard.style.width = startRect.width + 'px'; flyingCard.style.height = startRect.height + 'px';
             flyingCard.style.margin = '0';
-            
-            // 🌟 關鍵修復 1：用 setProperty 強制掛上 !important，蓋過 CSS 的設定
             flyingCard.style.setProperty('z-index', (role === winnerRole) ? '10000' : '9998', 'important');
 
-            cardEl.style.visibility = 'hidden'; // 隱藏原本桌上的牌
-            phantomCards.push({ role: role, el: flyingCard, startRect: startRect });
+            cardEl.style.visibility = 'hidden'; phantomCards.push({ role: role, el: flyingCard, startRect: startRect });
         }
     });
 
-    // 🌟 關鍵修復 2：調整加入網頁的順序，確保贏家的牌「最後」加入 (物理層面絕對在最上層)
     phantomCards.forEach(pc => { if (pc.role !== winnerRole) document.body.appendChild(pc.el); });
     phantomCards.forEach(pc => { if (pc.role === winnerRole) document.body.appendChild(pc.el); });
 
-    // 計算螢幕正中央的座標
-    const centerLeft = window.innerWidth / 2;
-    const centerTop = window.innerHeight / 2;
-    const cardWidth = phantomCards[0].startRect.width;
-    const cardHeight = phantomCards[0].startRect.height;
-    const exactCenterLeft = centerLeft - cardWidth / 2;
-    const exactCenterTop = centerTop - cardHeight / 2;
+    const cx = window.innerWidth / 2 - phantomCards[0].startRect.width / 2;
+    const cy = window.innerHeight / 2 - phantomCards[0].startRect.height / 2;
 
-    // 🎬 動畫第一階段 (0ms)：最大那張牌飛到正中央，並且放大「重擊」桌面！
     phantomCards.forEach(pc => {
         if (pc.role === winnerRole) {
             requestAnimationFrame(() => {
-                pc.el.style.left = exactCenterLeft + 'px';
-                pc.el.style.top = exactCenterTop + 'px';
-                pc.el.style.transform = 'scale(1.5)'; // 放大 1.5 倍
-                pc.el.style.boxShadow = '0 20px 50px rgba(212, 175, 55, 0.6)'; // 加上金色霸氣陰影
+                pc.el.style.left = cx + 'px'; pc.el.style.top = cy + 'px';
+                pc.el.style.transform = 'scale(1.5)'; pc.el.style.boxShadow = '0 20px 50px rgba(212, 175, 55, 0.6)';
             });
         }
     });
 
-    // 🎬 動畫第二階段 (300ms)：其他三張敗將的牌，乖乖收到最大那張牌的「底下」
     setTimeout(() => {
         phantomCards.forEach(pc => {
-            if (pc.role !== winnerRole) {
-                pc.el.style.left = exactCenterLeft + 'px';
-                pc.el.style.top = exactCenterTop + 'px';
-                pc.el.style.transform = 'scale(1)'; // 維持正常大小
-            }
+            if (pc.role !== winnerRole) { pc.el.style.left = cx + 'px'; pc.el.style.top = cy + 'px'; pc.el.style.transform = 'scale(1)'; }
         });
     }, 300); 
 
-    // 🎬 動畫第三階段 (800ms)：整疊牌一起縮小，飛向贏家的計牌器
     setTimeout(() => {
         phantomCards.forEach(pc => {
-            pc.el.style.left = (destRect.left + destRect.width/2 - cardWidth/2) + 'px';
-            pc.el.style.top = (destRect.top + destRect.height/2 - cardHeight/2) + 'px';
-            pc.el.style.transform = 'scale(0.2) rotate(15deg)'; 
-            pc.el.style.opacity = '0';
-            pc.el.style.boxShadow = 'none';
+            pc.el.style.left = (destRect.left + destRect.width/2 - phantomCards[0].startRect.width/2) + 'px';
+            pc.el.style.top = (destRect.top + destRect.height/2 - phantomCards[0].startRect.height/2) + 'px';
+            pc.el.style.transform = 'scale(0.2) rotate(15deg)'; pc.el.style.opacity = '0'; pc.el.style.boxShadow = 'none';
         });
     }, 800); 
 
-    // 🎬 動畫第四階段 (1400ms)：清理幻影牌、更新分數、換下一回合
     setTimeout(() => {
-        phantomCards.forEach(pc => pc.el.remove()); // 刪除特效 DOM
-        
+        phantomCards.forEach(pc => pc.el.remove()); 
         const team = (winnerRole === 'south' || winnerRole === 'north') ? 'ns' : 'ew';
-        scores[team]++;
-        personalScores[winnerRole]++;
-        
-        tableCards = {}; 
-        renderTable();
-        updateScoreboardUI();
-        updatePersonalTrickPiles();
-        checkGameEnd();
-        
+        scores[team]++; personalScores[winnerRole]++;
+        tableCards = {}; renderTable(); updateScoreboardUI(); updatePersonalTrickPiles(); checkGameEnd();
         if (!gameFinished) setTurn(winnerRole); 
     }, 1400); 
 }
 
 // ==========================================
-// 🎨 UI 狀態更新器
+// 🎨 UI 狀態更新器與 🌟Wi-Fi 燒線引擎
 // ==========================================
 function updateTurnUI() {
     let activeRole = (currentBiddingState && currentBiddingState.status !== "finished") ? currentBiddingState.turn : currentTurnGlobally;
 
-    // 清除所有閃爍
     ['south', 'north', 'west', 'east'].forEach(role => {
         let dot = document.getElementById(`dot-${role}`);
         if(dot) dot.classList.remove('dot-active');
     });
 
-    // 為當前玩家加上閃爍
     if (activeRole && roles.includes(activeRole)) {
         let activeDot = document.getElementById(`dot-${activeRole}`);
         if(activeDot) activeDot.classList.add('dot-active');
         updateFlameEffect(activeRole); 
+        
+        startBurnLine(activeRole);
+    } else {
+        startBurnLine('waiting'); 
+    }
+}
+
+// --- 🌟 Wi-Fi 燒線機制核心 ---
+function startBurnLine(role) {
+    clearInterval(turnTimerInterval);
+    let existingTimer = document.getElementById('turn-timer');
+    if (existingTimer) existingTimer.remove();
+
+    if (role === 'waiting' || gameFinished) return;
+
+    let dot = document.getElementById(`dot-${role}`);
+    if (!dot) return;
+
+    let timerDiv = document.createElement('div');
+    timerDiv.id = 'turn-timer';
+    timerDiv.className = 'turn-timer';
+
+    const colorMap = { 'south': '#5470c6', 'north': '#b32e2e', 'west': '#fbd347', 'east': '#628e46' };
+    timerDiv.style.setProperty('--timer-color', colorMap[role]);
+
+    for (let i = 1; i <= 5; i++) {
+        let bar = document.createElement('div');
+        bar.className = `t-bar t-bar-${i}`;
+        timerDiv.appendChild(bar);
+    }
+
+    dot.after(timerDiv);
+
+    let currentWidth = 27;
+    requestAnimationFrame(() => { 
+        timerDiv.classList.add('show'); 
+        timerDiv.style.width = currentWidth + 'px';
+    });
+
+    let currentBarToHide = 1; 
+    turnTimerInterval = setInterval(() => {
+        if (isGamePaused) return; // 修復：如果正在看規則，就凍結時間跳過這次倒數！
+        
+        if (currentBarToHide <= 5) {
+            let barToHide = timerDiv.querySelector(`.t-bar-${currentBarToHide}`);
+            if (barToHide) {
+                barToHide.style.opacity = '0';
+                barToHide.style.width = '0px';
+                barToHide.style.marginRight = '0px';
+            }
+            
+            currentWidth -= (currentBarToHide < 5) ? 6 : 3; 
+            timerDiv.style.width = currentWidth + 'px';
+            
+            if (currentBarToHide === 5) {
+                timerDiv.style.marginLeft = '0px';
+                timerDiv.style.marginRight = '0px';
+            }
+
+            currentBarToHide++;
+        } else {
+            clearInterval(turnTimerInterval);
+            
+            if (role === myRole && currentTurnGlobally === myRole) {
+                handlePlayerTimeout();
+            }
+        }
+    }, 4000); 
+}
+
+// ==========================================
+// 🌟 玩家超時防掛機：自動喊牌與出牌邏輯
+// ==========================================
+function handlePlayerTimeout() {
+    if (currentBiddingState.status === "active") {
+        submitBid('Pass', null, myRole);
+        
+    } else if (currentBiddingState.status === "finished") {
+        let myHand = hands[myRole];
+        if (myHand.length === 0) return;
+
+        let cardsOnTable = Object.values(tableCards);
+        let leadSuit = cardsOnTable.length > 0 ? cardsOnTable[0].s : null;
+        let validCards = myHand;
+
+        if (leadSuit && myHand.some(c => c.s === leadSuit)) {
+            validCards = myHand.filter(c => c.s === leadSuit);
+        }
+
+        let chosenCard = validCards[Math.floor(Math.random() * validCards.length)];
+        let cardIndex = myHand.indexOf(chosenCard);
+
+        selectedCardIndex = -1; 
+        let playedCard = hands[myRole].splice(cardIndex, 1)[0]; 
+        tableCards[myRole] = { from: myRole, playerName: "你", ...playedCard };
+        
+        isRendering = false;
+        renderHand();      
+        renderTable();     
+        checkTableFull();  
     }
 }
 
 function updateScoreboardUI() {
-    let nsT = "?"; let ewT = "?";
-    
+    let nsT = "?", ewT = "?";
     if (currentBiddingState && currentBiddingState.status === "finished" && currentBiddingState.contract) {
         const c = currentBiddingState.contract;
         nsT = c.team === 'NS' ? c.targetTricks : 14 - c.targetTricks;
         ewT = c.team === 'EW' ? c.targetTricks : 14 - c.targetTricks;
     }
-
-    const nsEl = document.getElementById('score-ns-text');
-    const ewEl = document.getElementById('score-ew-text');
-    
+    const nsEl = document.getElementById('score-ns-text'), ewEl = document.getElementById('score-ew-text');
     if (nsEl) nsEl.innerHTML = ` ${scores.ns || 0}/${nsT}`;
     if (ewEl) ewEl.innerHTML = ` ${scores.ew || 0}/${ewT}`;
 }
@@ -581,10 +538,8 @@ function updateScoreboardUI() {
 function updateContractUI(contract) {
     const displayEl = document.getElementById('contract-display');
     if (!contract) return; 
-    
     const colorHexMap = { 'south': '#5470c6', 'west': '#fbd347', 'north': '#b32e2e', 'east': '#628e46' };
     const cColor = colorHexMap[contract.declarer] || '#333';
-    
     displayEl.innerHTML = `<span style="color: ${cColor}; font-size: 1.3rem; font-weight: 900; text-shadow: 1px 1px 0px rgba(255,255,255,0.5); margin-left: 5px;">${contract.level}${contract.suit}</span>`;
 }
 
@@ -593,26 +548,21 @@ function updatePersonalTrickPiles() {
     roles.forEach((r, i) => { 
         const el = document.getElementById(`pile-${pos[(i-roles.indexOf(myRole)+4)%4]}`); 
         if (el) {
-            if (currentBiddingState && currentBiddingState.status === "finished") {
-                el.style.display = 'flex'; el.innerText = personalScores[r] || 0; 
-            } else { el.style.display = 'none'; }
+            if (currentBiddingState && currentBiddingState.status === "finished") { el.style.display = 'flex'; el.innerText = personalScores[r] || 0; } 
+            else el.style.display = 'none'; 
         }
     });
 }
 
 function updatePlayerLabels() {
-    document.getElementById('label-bottom').innerText = "你 (南)";
-    document.getElementById('label-left').innerText = "電腦 (西)";
-    document.getElementById('label-top').innerText = "電腦 (北)";
-    document.getElementById('label-right').innerText = "電腦 (東)";
+    document.getElementById('label-bottom').innerText = "你 (南)"; document.getElementById('label-left').innerText = "電腦 (西)";
+    document.getElementById('label-top').innerText = "電腦 (北)"; document.getElementById('label-right').innerText = "電腦 (東)";
 }
 
 function updateFlameEffect(t) {
-    const pos = ['bottom', 'left', 'top', 'right']; const myIdx = roles.indexOf(myRole);
+    const pos = ['bottom', 'left', 'top', 'right'], myIdx = roles.indexOf(myRole);
     pos.forEach(p => document.getElementById(`label-${p}`).classList.remove('active-turn'));
-    if(t && roles.includes(t)){
-        document.getElementById(`label-${pos[(roles.indexOf(t)-myIdx+4)%4]}`).classList.add('active-turn');
-    }
+    if(t && roles.includes(t)) document.getElementById(`label-${pos[(roles.indexOf(t)-myIdx+4)%4]}`).classList.add('active-turn');
 }
 
 // ==========================================
@@ -620,58 +570,111 @@ function updateFlameEffect(t) {
 // ==========================================
 function checkGameEnd() {
     if (!currentBiddingState || !currentBiddingState.contract) return;
-    const c = currentBiddingState.contract;
-    let isGameOver = false;
+    const c = currentBiddingState.contract; let isGameOver = false;
     
     if (c.team === 'NS') { if (scores.ns >= c.targetTricks || scores.ew >= (14 - c.targetTricks)) isGameOver = true; }
     else { if (scores.ew >= c.targetTricks || scores.ns >= (14 - c.targetTricks)) isGameOver = true; }
 
     if (scores.ns + scores.ew === 13 || isGameOver) {
-        gameFinished = true;
-        setTimeout(() => { showVictoryScreen(); }, 1500); 
+        gameFinished = true; setTimeout(() => { showVictoryScreen(); }, 1500); 
     }
 }
 
 function showVictoryScreen() {
     const c = currentBiddingState.contract;
+    
+    // 判斷勝方
     let winTeam = (c.team === 'NS') ? (scores.ns >= c.targetTricks ? "NS" : "EW") : (scores.ew >= c.targetTricks ? "EW" : "NS");
     
-    document.getElementById('victory-title').innerText = (winTeam === 'NS') ? "🏆 勝利！！" : "💀 失敗";
-    document.getElementById('victory-title').style.color = (winTeam === 'NS') ? "var(--premium-gold)" : "#95a5a6";
-    document.getElementById('v-ns-line').innerHTML = `南北家(你): <b style="color:white; font-size:1.4rem;">${scores.ns}</b> 墩${c.team==='NS'?' (目標 '+c.targetTricks+' 墩)':''}`;
-    document.getElementById('v-ew-line').innerHTML = `東西家(電腦): <b style="color:white; font-size:1.4rem;">${scores.ew}</b> 墩${c.team==='EW'?' (目標 '+c.targetTricks+' 墩)':''}`;
-    document.getElementById('victory-team-names').innerText = (winTeam === 'NS') ? "南北家" : "東西家";
-    document.getElementById('v-contract').innerText = `${c.level}${c.suit}`;
+    // 設定大標題 (勝利亮金，失敗灰暗)
+    let titleEl = document.getElementById('victory-title');
+    titleEl.innerText = (winTeam === 'NS') ? "Victory" : "Defeat";
+    titleEl.style.color = (winTeam === 'NS') ? "#fbd347" : "#95a5a6"; 
     
-    const btnLobby = document.getElementById('btn-lobby');
-    if (btnLobby) btnLobby.style.display = 'none';
+    // 計算雙方的目標分數
+    let nsT = c.team === 'NS' ? c.targetTricks : 14 - c.targetTricks;
+    let ewT = c.team === 'EW' ? c.targetTricks : 14 - c.targetTricks;
     
+    // 更新極簡分數板的 X/Y
+    document.getElementById('v-score-ns-text').innerText = `${scores.ns || 0}/${nsT}`;
+    document.getElementById('v-score-ew-text').innerText = `${scores.ew || 0}/${ewT}`;
+    
+    // 綁定「再來一場」
     const btnAgain = document.getElementById('btn-again');
-    if (btnAgain) {
-        btnAgain.onclick = setupNewDeck;
-        btnAgain.innerText = "再來一局";
-        btnAgain.style.width = "100%"; 
+    if (btnAgain) { 
+        btnAgain.onclick = setupNewDeck; 
+        btnAgain.innerText = "再來一場"; 
     }
-    
+    renderTrickReview(); 
     document.getElementById('victory-overlay').classList.add('show');
 }
 
 function sortHand(hand) {
-    const suitOrder = {'♠': 4, '♥': 3, '♦': 2, '♣': 1}; 
-    const valOrder = {'A':14, 'K':13, 'Q':12, 'J':11, '10':10, '9':9, '8':8, '7':7, '6':6, '5':5, '4':4, '3':3, '2':2};
+    const suitOrder = {'♠': 4, '♥': 3, '♦': 2, '♣': 1}, valOrder = {'A':14, 'K':13, 'Q':12, 'J':11, '10':10, '9':9, '8':8, '7':7, '6':6, '5':5, '4':4, '3':3, '2':2};
     return hand.sort((a, b) => suitOrder[a.s] !== suitOrder[b.s] ? suitOrder[b.s] - suitOrder[a.s] : valOrder[b.v] - valOrder[a.v]).reverse();
 }
 
+// 🌟 點擊背景取消選牌
+document.addEventListener('click', () => { if (selectedCardIndex !== -1) { selectedCardIndex = -1; renderHand(); } });
+
 // ==========================================
-// 🌟 玩家互動體驗優化：點擊背景取消選牌
+// 🌟 遊戲規則按鈕 (Hover/觸控 暫停機制)
 // ==========================================
-document.addEventListener('click', () => {
-    // 如果目前有選取任何牌 (升起狀態)，就把選取狀態清空並重新渲染手牌
-    if (selectedCardIndex !== -1) {
-        selectedCardIndex = -1;
-        renderHand();
-    }
-});
+const btnRules = document.getElementById('btn-rules');
+const rulesModal = document.getElementById('rules-overlay');
+
+const showRules = (e) => {
+    e.preventDefault();
+    isGamePaused = true; 
+    rulesModal.style.display = 'block';
+};
+
+const hideRules = (e) => {
+    e.preventDefault();
+    isGamePaused = false; 
+    rulesModal.style.display = 'none';
+};
+
+if (btnRules) {
+    btnRules.addEventListener('mouseenter', showRules);
+    btnRules.addEventListener('mouseleave', hideRules);
+    btnRules.addEventListener('touchstart', showRules, { passive: false });
+    btnRules.addEventListener('touchend', hideRules);
+    btnRules.addEventListener('touchcancel', hideRules);
+}
+
+// ==========================================
+// 🌟 繪製結算復盤畫面
+// ==========================================
+function renderTrickReview() {
+    const container = document.getElementById('review-scrollarea');
+    if (!container) return;
+    container.innerHTML = ""; 
+
+    trickHistory.forEach((trick, index) => {
+        const row = document.createElement('div');
+        row.className = 'v-trick-row';
+        
+        row.innerHTML = `<span class="v-trick-label">T${index + 1}</span>`;
+        
+        const cardsDiv = document.createElement('div');
+        cardsDiv.className = 'v-trick-cards';
+        
+        trick.cards.forEach(c => {
+            const isWinner = (c.role === trick.winnerRole) ? 'winner-card' : '';
+            const colorClass = (c.suit === '♥' || c.suit === '♦') ? 'red' : '';
+            
+            cardsDiv.innerHTML += `
+                <div class="mini-card border-${c.role} ${isWinner}">
+                    ${c.val}<span class="${colorClass}">${c.suit}</span>
+                </div>
+            `;
+        });
+        
+        row.appendChild(cardsDiv);
+        container.appendChild(row);
+    });
+}
 
 // 🚀 啟動單機版遊戲
 initializeGame();
