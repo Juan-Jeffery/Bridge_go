@@ -32,38 +32,65 @@ body, html {
     margin: 0; padding: 0;
     font-family: "PingFang TC", "Microsoft JhengHei", sans-serif;
 }
-.waiting-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1000; color: white;}
-
+.waiting-overlay { 
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+    background: rgba(0,0,0,0.9); display: flex; flex-direction: column; 
+    justify-content: center; align-items: center; z-index: 1000; color: white;
+}
 
 /* ==========================================
-   2. 頂部導覽列 (狀態、分數與輪次提示)
+   2. 頂部導覽列 (絕對置中版 + 規則按鈕)
 ========================================== */
 .top-nav-bar {
     position: absolute; top: 0; left: 0; width: 100%; height: 60px;
     background: var(--bg-light); 
     border-bottom: 2px solid var(--line-purple);
-    display: flex !important; justify-content: space-between !important; align-items: center;
+    display: flex; align-items: center;
     padding: 0 20px; box-sizing: border-box;
     color: #000; z-index: 9999;
 }
+
+/* 導覽列左右與置中排版 */
+.nav-left { flex: 1; display: flex; justify-content: flex-start; }
+.nav-right { flex: 1; display: flex; justify-content: flex-end; align-items: center; }
+.nav-center {
+    position: absolute; left: 50%; transform: translateX(-50%);
+    display: flex; align-items: center; justify-content: center;
+}
+
+/* 導覽列文字與隱藏舊版 */
 .game-status { display: flex; align-items: center; font-size: 1.2rem; color: #333; font-weight: bold; }
-.teams-container { display: flex; align-items: center; justify-content: flex-end; }
 .team-info { display: flex; align-items: center; }
 .nav-divider { color: #ccc; margin: 0 15px; font-weight: 300; font-size: 1.5rem; }
 .team-text { margin-left: 10px; font-size: 1.3rem; font-weight: bold; }
-.status-bar { display: none !important; } /* 隱藏舊版 */
+.status-bar { display: none !important; } 
 
-/* 導覽列：圓點設定 */
-.dot { 
-    width: 18px; height: 18px; border-radius: 50%; 
-    border: none; margin-right: 6px; position: relative; 
+/* 規則按鈕與浮窗 */
+.btn-rules {
+    width: 32px; height: 32px; border-radius: 50%;
+    background-color: var(--line-purple); color: white; border: none;
+    font-weight: bold; font-size: 1.1rem; cursor: pointer;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.5); transition: transform 0.2s, background 0.2s;
+    display: flex; justify-content: center; align-items: center;
 }
+.btn-rules:active, .btn-rules:hover { background-color: var(--premium-gold); transform: scale(1.1); }
+
+.rules-modal {
+    display: none; position: fixed; top: 65px; right: 15px;
+    width: 280px; background: rgba(26, 37, 47, 0.95);
+    border: 2px solid var(--premium-gold); border-radius: 12px;
+    padding: 15px; color: white; z-index: 100000;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.8); backdrop-filter: blur(10px);
+    pointer-events: none; 
+}
+
+/* 導覽列圓點與閃爍 */
+.dot { width: 18px; height: 18px; border-radius: 50%; border: none; margin-right: 6px; position: relative; }
 .bg-blue { background-color: var(--team-blue); }
 .bg-red { background-color: var(--team-red); }
 .bg-yellow { background-color: var(--team-yellow); }
 .bg-green { background-color: var(--team-green); }
 
-/* 導覽列：圓點閃爍特效 (提示輪到誰) */
 .dot-active { z-index: 10; }
 .dot-active::after {
     content: ''; position: absolute;
@@ -76,21 +103,17 @@ body, html {
 .dot-active#dot-west::after { border-color: var(--team-yellow); }
 .dot-active#dot-east::after { border-color: var(--team-green); }
 
-
 /* ==========================================
    3. 桌面佈局與玩家資訊框
 ========================================== */
 .table-container { 
-    display: grid; width: 100%; 
-    height: calc(100% - 60px); margin-top: 60px; 
+    display: grid; width: 100%; height: calc(100% - 60px); margin-top: 60px; 
     background: radial-gradient(circle, #1a5d1a 0%, #112a10 100%); 
-    grid-template-columns: 200px 1fr 200px; 
-    grid-template-rows: 150px 1fr 180px; 
+    grid-template-columns: 200px 1fr 200px; grid-template-rows: 150px 1fr 180px; 
     box-sizing: border-box;
 }
 .player-slot { position: relative; display: flex; flex-direction: column; justify-content: center; align-items: center; width: 100%; }
 
-/* 定位補完 */
 .pos-top { grid-column: 2; grid-row: 1; align-self: end; }
 .pos-bottom { grid-column: 2; grid-row: 3; align-self: start; }
 .pos-left { grid-column: 1; grid-row: 2; }
@@ -107,7 +130,6 @@ body, html {
 #label-left { background-color: var(--team-yellow); color: black; } 
 #label-right { background-color: var(--team-green); color: white; }
 
-/* 玩家框：方環閃爍特效 */
 .active-turn { transform: scale(1.2); }
 .active-turn::after {
     content: ''; position: absolute;
@@ -124,7 +146,6 @@ body, html {
     0% { opacity: 0; transform: scale(0.85); } 
     100% { opacity: 1; transform: scale(1); }  
 }
-
 
 /* ==========================================
    4. 中央戰場與出牌槽位 (電腦版預設)
@@ -144,47 +165,35 @@ body, html {
 .slot-west   { left: 40%; top: 50%; transform: translateY(-50%); }
 .slot-east   { right: 40%; top: 50%; transform: translateY(-50%); }
 
-
 /* ==========================================
    5. 卡片、手牌與動畫特效
 ========================================== */
-
 .hand-area { 
-    display: flex; justify-content: center; width: 100%; height: 100%; align-items: center; padding: 0 10px; box-sizing: border-box; 
-    /* 🌟 定義電腦版的基礎重疊度與花色間距 */
-    --overlap: -25px; 
-    --suit-gap: 15px; 
+    display: flex; justify-content: center; align-items: center; 
+    width: 100%; height: 100%; padding: 0 10px; box-sizing: border-box; 
+    --overlap: -25px; --suit-gap: 15px; 
 }
 .card { 
     width: 60px; height: 90px; background: #ffffff; border-radius: 6px; 
     box-shadow: 2px 2px 8px rgba(0,0,0,0.5); color: black; 
     display: flex; flex-direction: column; padding: 6px; font-weight: bold; 
     cursor: pointer; user-select: none; position: relative;
-    
-    /* 🌟 讓 JS 自動計算重疊程度：擁擠係數 * 基礎重疊 */
     margin-left: calc(var(--overlap) * var(--card-count-factor, 1));
-    
-    /* 🌟 新增 margin-left 動畫，抽牌時其他牌會平滑滑開！ */
     transition: transform 0.25s cubic-bezier(0.18, 0.89, 0.32, 1.28), margin-left 0.4s ease-out, filter 0.3s, opacity 0.3s;
 }
 .card:first-child { margin-left: 0 !important; }
 .card.red { color: #e74c3c; }
+.card.suit-gap { margin-left: calc((var(--overlap) * var(--card-count-factor, 1)) + var(--suit-gap)) !important; }
 
-/* 🌟 當花色改變時，額外加上空隙 */
-.card.suit-gap {
-    margin-left: calc((var(--overlap) * var(--card-count-factor, 1)) + var(--suit-gap)) !important;
-}
 /* 狀態卡片 */
 .card.selected { transform: translateY(-45px) scale(1.15) !important; z-index: 1000 !important; border: 2px solid var(--premium-gold); box-shadow: 0 15px 30px rgba(0,0,0,0.8); }
 .card.disabled { opacity: 0.5; background-color: #a0a0a0; pointer-events: none; filter: grayscale(100%); transform: translateY(15px); box-shadow: none; }
 
-/* 打出的牌定位與掉落動畫 (🌟 已移除名字浮出特效) */
+/* 出牌與收牌動畫 */
 .table-card { 
     position: absolute !important; top: 0; left: 0; margin: 0 !important;
     animation: card-drop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
 }
-
-/* 收牌飛行動畫 */
 .card.flying { 
     transition: all 0.6s cubic-bezier(0.5, 0, 0.5, 1); 
     position: fixed !important; z-index: 9999 !important; pointer-events: none;
@@ -194,30 +203,17 @@ body, html {
     100% { transform: scale(1); opacity: 1; box-shadow: 2px 2px 8px rgba(0,0,0,0.5); }
 }
 
-/* --- 最強牌「純大小縮放」特效 --- */
+/* 最強牌心跳縮放特效 */
 .best-card {
-    /* 🌟 徹底拿掉所有裝飾：不用金邊、不用發光 */
-    border: none !important; 
-    box-shadow: none !important;
-    
-    /* 確保最強牌在最上層，避免被其他卡片切到 */
-    z-index: 100 !important; 
-    
-    /* 動畫保持 1 秒：0.5秒動作 + 0.5秒停頓 */
+    border: none !important; box-shadow: none !important; z-index: 100 !important; 
     animation: best-heartbeat 1s infinite ease-in-out; 
 }
-
-/* 🌟 修改：心跳縮放動畫 (只調整 transform 屬性) */
 @keyframes best-heartbeat {
-    /* 0% ~ 50% (花費 0.5 秒)：原本大小 ➔ 放大 ➔ 回到原本大小 */
     0%   { transform: scale(1); }
-    25%  { transform: scale(1.15); } /* 放大到 1.15 倍 */
+    25%  { transform: scale(1.15); } 
     50%  { transform: scale(1); }
-    
-    /* 50% ~ 100% (花費 0.5 秒)：靜止停頓，維持原本大小 */
     100% { transform: scale(1); }
 }
-
 
 /* ==========================================
    6. 喊牌面板 (Bidding Modal)
@@ -230,66 +226,131 @@ body, html {
     box-shadow: 0 25px 50px rgba(0,0,0,0.8); backdrop-filter: blur(15px);
     width: 340px; max-width: 85vw;
 }
-#bidding-history {
-    display: flex; flex-wrap: wrap; justify-content: center; align-items: center;
-    gap: 8px; margin-bottom: 25px; line-height: 2; 
-}
-.bid-grid { 
-    display: grid; grid-template-rows: repeat(7, 1fr); grid-template-columns: repeat(5, 1fr);
-    gap: 6px; margin-bottom: 15px; 
-}
+#bidding-history { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 8px; margin-bottom: 25px; line-height: 2; }
+.bid-grid { display: grid; grid-template-rows: repeat(7, 1fr); grid-template-columns: repeat(5, 1fr); gap: 6px; margin-bottom: 15px; }
 .bid-btn { padding: 10px 5px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: white; border-radius: 8px; cursor: pointer; transition: 0.2s; }
 .bid-btn:disabled { opacity: 0.15; filter: grayscale(100%); }
 .pass-btn { width: 100%; background: linear-gradient(135deg, #c0392b, #8e44ad); border: none; padding: 12px; font-size: 1.1rem; border-radius: 10px; color: white; font-weight: bold; }
 
+/* ==========================================
+   7. 勝利結算與質感復盤
+========================================== */
+#victory-overlay { 
+    position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; 
+    background: rgba(0, 0, 0, 0.85); display: none; justify-content: center; align-items: center; 
+    z-index: 3000; backdrop-filter: blur(8px); opacity: 0; transition: opacity 1s; 
+}
+#victory-overlay.show { display: flex; opacity: 1; }
+.victory-card { 
+    background: linear-gradient(145deg, rgba(44, 62, 80, 0.95) 0%, rgba(26, 37, 47, 0.98) 100%);
+    border: 2px solid var(--premium-gold); border-radius: 20px; 
+    padding: 30px 20px 25px; text-align: center; color: white; 
+    box-shadow: 0 10px 40px rgba(0,0,0,0.8); width: 320px; max-width: 90vw;
+    animation: popInAndGlow 0.8s forwards; 
+}
+
+@keyframes popInAndGlow {
+    0% { transform: scale(0.8); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; box-shadow: 0 0 50px rgba(212, 175, 55, 0.3); }
+}
+
+#victory-title { font-size: 3.2rem; margin: 0 0 15px 0; font-weight: 900; letter-spacing: 2px; }
+
+/* 極簡分數板 */
+.v-teams-container { 
+    display: flex; align-items: center; justify-content: center; 
+    background: rgba(0,0,0,0.4); border-radius: 12px; padding: 12px; margin-bottom: 20px;
+    border: 1px solid rgba(255,255,255,0.05);
+}
+.v-team-info { display: flex; align-items: center; }
+.v-team-text { margin-left: 8px; font-size: 1.5rem; font-weight: bold; color: white; }
+.v-nav-divider { color: #666; margin: 0 12px; font-weight: 300; font-size: 1.5rem; }
+
+/* 復盤區域 */
+.v-review-container { background: rgba(0,0,0,0.3); border-radius: 12px; padding: 15px; margin-bottom: 25px; text-align: left; }
+.v-review-title { font-size: 1.1rem; color: #aaa; font-weight: bold; margin: 0 0 12px 0; letter-spacing: 1px; }
+.v-review-scrollarea { height: 250px; overflow-y: scroll; padding-right: 5px; }
+.v-review-scrollarea::-webkit-scrollbar { width: 5px; }
+.v-review-scrollarea::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); border-radius: 3px; }
+.v-review-scrollarea::-webkit-scrollbar-thumb { background: rgba(212, 175, 55, 0.3); border-radius: 3px; }
+
+.v-trick-row { display: flex; align-items: center; margin-bottom: 12px; }
+.v-trick-row:last-child { margin-bottom: 0; }
+.v-trick-label { width: 30px; font-size: 1.1rem; font-weight: bold; color: #888; margin-right: 10px; }
+.v-trick-cards { display: flex; gap: 6px; align-items: center; }
+
+.mini-card {
+    width: 50px; height: 75px; background: white; border-radius: 5px; color: black; font-weight: bold; 
+    font-size: 1.2rem; display: flex; flex-direction: column; padding: 4px; box-sizing: border-box;
+    box-shadow: 2px 2px 5px rgba(0,0,0,0.5); border: 2px solid transparent; transition: transform 0.2s; 
+}
+.mini-card span { font-size: 0.9rem; margin-top: -2px; }
+.mini-card span.red { color: #e74c3c; } 
+.mini-card.winner-card { transform: scale(1.15); z-index: 5; }
+.mini-card.border-south { border-color: var(--team-blue) !important; }
+.mini-card.border-north { border-color: var(--team-red) !important; }
+.mini-card.border-west { border-color: var(--team-yellow) !important; }
+.mini-card.border-east { border-color: var(--team-green) !important; }
+
+/* 再來一場按鈕 */
+.btn-again { 
+    width: 100%; background: var(--premium-gold); color: #111; border: none; padding: 12px; 
+    font-size: 1.2rem; border-radius: 10px; font-weight: bold; cursor: pointer; transition: 0.2s;
+}
+.btn-again:active { transform: scale(0.95); }
 
 /* ==========================================
-   7. 勝利與結算畫面、吃牌堆 (Trick Piles)
+   🌟 吃牌堆與燒線機制
 ========================================== */
-#victory-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0, 0, 0, 0.85); display: none; justify-content: center; align-items: center; z-index: 3000; backdrop-filter: blur(8px); opacity: 0; transition: opacity 1s; }
-#victory-overlay.show { display: flex; opacity: 1; }
-.victory-card { background: linear-gradient(145deg, var(--premium-dark) 0%, var(--premium-bg) 100%); border: 2px solid var(--premium-gold); border-radius: 20px; padding: 40px; text-align: center; color: white; box-shadow: 0 0 80px rgba(212, 175, 55, 0.4); animation: popInAndGlow 1.2s forwards; }
-#victory-title { font-size: 3.5rem; letter-spacing: 5px; margin-bottom: 15px; }
-#victory-stats div { margin: 12px 0; font-size: 1.2rem; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 10px; }
-.victory-buttons { display: flex; justify-content: center; gap: 20px; margin-top: 30px; }
-.btn-action { padding: 12px 30px; border-radius: 30px; cursor: pointer; font-weight: bold; font-size: 1.1rem; transition: 0.3s; }
-.btn-again { background: var(--premium-gold); color: #111; border: none; }
+.trick-pile { 
+    position: absolute; width: 30px; height: 45px; background: #2c3e50; 
+    border: 1px solid var(--premium-gold); border-radius: 4px; display: none; 
+    justify-content: center; align-items: center; font-weight: bold; color: var(--premium-gold); 
+    z-index: 5; font-size: 1rem; 
+}
+.pile-top { top: 5px; left: 5px; }
+.pile-bottom { bottom: 105px; right: 10px; }
+.pile-left { bottom: 125px; right: 5px; }
+.pile-right { top: 125px; left: 5px; }
 
-.trick-pile { position: absolute; width: 30px; height: 45px; background: #2c3e50; border: 1px solid var(--premium-gold); border-radius: 4px; display: none; justify-content: center; align-items: center; font-weight: bold; color: var(--premium-gold); z-index: 5; font-size: 1rem; }
-.pile-top { top: 5px; right: 5px; }
-.pile-bottom { bottom: 65px; right: 10px; }
-.pile-left, .pile-right { top: 5px; right: 5px; }
+/* 燒線機制 (Wi-Fi 動態信號條) */
+.turn-timer {
+    display: flex; align-items: flex-end; width: 0; margin-left: 0; margin-right: 0; opacity: 0; overflow: hidden; height: 18px; 
+    transition: width 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28), margin 0.3s ease, opacity 0.3s ease;
+}
+.turn-timer.show { width: 27px; margin-left: 6px; margin-right: 4px; opacity: 1; }
 
+.t-bar {
+    width: 3px; margin-right: 3px; background-color: var(--timer-color, #fff); border-radius: 2px;
+    transition: width 0.3s ease, margin 0.3s ease, opacity 0.3s ease; 
+}
+.t-bar:last-child { margin-right: 0; }
+.t-bar-1 { height: 18px; }
+.t-bar-2 { height: 15px; }
+.t-bar-3 { height: 12px; }
+.t-bar-4 { height: 9px; }
+.t-bar-5 { height: 6px; }
 
 /* ========================================================= */
 /* 📱 8. 響應式：手機「直式 (Portrait)」修正 */
 /* ========================================================= */
 @media screen and (max-width: 900px) and (orientation: portrait) {
     .table-container { 
-        grid-template-columns: 12% 76% 12%; 
-        grid-template-rows: 10dvh 1fr 22dvh; 
+        grid-template-columns: 12% 76% 12%; grid-template-rows: 10dvh 1fr 22dvh; 
         height: calc(100% - 50px); margin-top: 50px;
     }
     .pos-left .player-info, .pos-right .player-info { writing-mode: vertical-lr; padding: 8px 4px; font-size: 0.7rem; margin: 0; }
     .center-field { margin: 10px 2%; gap: 10px; }
 
-    /* 🌟 手機直式：槽位大小與位置校正 */
+    /* 手機直式：槽位大小與位置校正 */
     .play-slot { width: 40px !important; height: 60px !important; }
-    .slot-north  { top: 15% !important; left: 50% !important; transform: translateX(-50%); }
-    .slot-south  { bottom: 15% !important; left: 50% !important; transform: translateX(-50%); }
+    .slot-north  { top: 20% !important; left: 50% !important; transform: translateX(-50%); }
+    .slot-south  { bottom: 20% !important; left: 50% !important; transform: translateX(-50%); }
     .slot-west   { left: 30% !important; top: 50% !important; transform: translateY(-50%); }
     .slot-east   { right: 30% !important; top: 50% !important; transform: translateY(-50%); }
 
-    .hand-area { 
-        width: 100%; padding: 0; 
-        --overlap: -5.5vw;  /* 手機版較窄，用 vw 計算重疊 */
-        --suit-gap: 3.5vw;  /* 手機版的花色間隔 */
-    }
-    .card { 
-        width: 11.5vw; max-width: 48px; height: 17vw; max-height: 72px; 
-        font-size: 0.8rem; padding: 4px; 
-        /* 拿掉原本寫死在這邊的 margin-left，交給上面統一計算 */
-    }
+    .hand-area { width: 100%; padding: 0; --overlap: -5.5vw; --suit-gap: 3.5vw; }
+    .card { width: 11.5vw; max-width: 48px; height: 17vw; max-height: 72px; font-size: 0.8rem; padding: 4px; }
     .card.selected { transform: translateY(-4dvh) scale(1.1) !important; }
     .card.disabled { transform: translateY(2dvh); }
 
@@ -305,6 +366,6 @@ body, html {
     
     .victory-card { width: 90vw; padding: 25px 15px; box-sizing: border-box; }
     #victory-title { font-size: 2.2rem; }
-    .victory-buttons { flex-direction: column; gap: 12px; }
-    .btn-action { width: 100%; }
+    .rules-modal { width: 85vw; right: 5vw; top: 55px; }
+    .nav-left { transform: scale(0.85); transform-origin: left center; }
 }

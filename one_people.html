@@ -13,13 +13,13 @@
         <h2>遊戲準備中... 洗牌發牌中...</h2>
     </div>
 
-    <div class="top-nav-bar">
+<div class="top-nav-bar">
         
-        <div class="game-status">
+        <div class="game-status nav-left">
             <span id="contract-display">喊牌中...</span> 
         </div>
 
-        <div class="teams-container">
+        <div class="teams-container nav-center">
             <div class="team-info">
                 <div class="dot bg-blue" id="dot-south"></div>
                 <div class="dot bg-red" id="dot-north"></div>
@@ -35,8 +35,21 @@
             </div>
         </div>
         
-        <div id="score-display-teams" style="display: none;"></div>
-        <div id="turn-display" style="display: none;"></div>
+        <div class="nav-right">
+            <button id="btn-rules" class="btn-rules">?</button>
+        </div>
+
+    </div>
+
+    <div id="rules-overlay" class="rules-modal">
+        <h3 style="margin-top:0; color:var(--premium-gold); text-align:center;">遊戲規則</h3>
+        <ul style="padding-left: 20px; line-height: 1.6; font-size: 0.95rem; margin-bottom:0;">
+            <li><b>喊牌階段</b>：依序出價，最高者成為莊家，決定王牌花色。</li>
+            <li><b>打牌階段</b>：必須跟隨第一家打出的花色。無該花色時才可出其他牌或王牌。</li>
+            <li><b>王牌最大</b>：若有人出王牌，則王牌點數最大者贏得該墩。</li>
+            <li><b>勝利方式</b>：達到指定墩數時，立即勝利。</li>
+            <li><b>燒線機制</b>：信號燒盡時，系統將自動幫你出牌！</li>
+        </ul>
     </div>
 
     <div id="bidding-modal">
@@ -79,20 +92,30 @@
 
     <div id="victory-overlay">
         <div class="victory-card">
-            <h1 id="victory-title">👑 勝利 👑</h1>
-            <h2 id="victory-team-names">玩家A & 玩家B</h2>
-            <div id="victory-stats">
-                最終喊牌: <span id="v-contract" style="color:var(--premium-gold); font-weight:bold;">-</span>
-                <div style="margin: 15px 0; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px;">
-                    <div id="v-ns-line">載入中...</div>
-                    <div id="v-ew-line">載入中...</div>
+            <h1 id="victory-title">Victory</h1>
+            
+            <div class="v-teams-container">
+                <div class="v-team-info">
+                    <div class="dot bg-blue"></div>
+                    <div class="dot bg-red"></div>
+                    <span class="v-team-text" id="v-score-ns-text">1/13</span>
                 </div>
-                <span id="v-result" style="display:none;"></span>
+                
+                <span class="v-nav-divider">|</span>
+                
+                <div class="v-team-info">
+                    <div class="dot bg-yellow"></div>
+                    <div class="dot bg-green"></div>
+                    <span class="v-team-text" id="v-score-ew-text">1/1</span>
+                </div>
+            </div>
+
+            <div class="v-review-container">
+                <div class="v-review-scrollarea" id="review-scrollarea">    
+                </div>
             </div>
             
-            <div class="victory-buttons">
-                <button class="btn-action btn-again" id="btn-again" onclick="setupNewDeck()">再來一場</button>
-            </div>
+            <button class="btn-action btn-again" id="btn-again" onclick="setupNewDeck()">再來一場</button>
         </div>
     </div>
     
