@@ -6,141 +6,28 @@
     <title>橋牌 - 入口</title>
     
     <link rel="stylesheet" href="css/main.css">
-    
-    <style>
-        /* --- 高級感專屬樣式 --- */
-        :root {
-            --premium-gold: #d4af37;
-            --premium-dark: #2c3e50;
-            --premium-bg: #1a252f;
-            --text-soft: #ecf0f1;
-            --text-muted: #95a5a6;
-        }
-
-        body, html {
-            height: 100%; margin: 0;
-            background-color: var(--premium-bg);
-            overflow: hidden;
-        }
-
-        .main-menu {
-            display: flex; flex-direction: column;
-            justify-content: center; align-items: center;
-            height: 100dvh;
-            padding: 20px;
-        }
-
-        /* 尊爵卡片：改為垂直排版 (Column) */
-        .menu-card {
-            background: linear-gradient(145deg, rgba(44, 62, 80, 0.85) 0%, rgba(26, 37, 47, 0.95) 100%);
-            border-radius: 25px;
-            border: 1px solid rgba(255,255,255,0.08);
-            padding: 40px 30px;
-            box-shadow: 0 30px 60px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.1);
-            backdrop-filter: blur(10px);
-            
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 30px; 
-            width: 100%;
-            max-width: 400px; /* 適合直式手機寬度 */
-            box-sizing: border-box;
-        }
-
-        /* 標題區：改為置中 */
-        .title-area { text-align: center; }
-        .title-area h1 { 
-            font-size: 3.5rem; color: var(--premium-gold); margin: 0; 
-            letter-spacing: 12px; font-weight: 300; 
-            text-shadow: 0 5px 15px rgba(212, 175, 55, 0.2);
-            font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
-        }
-
-        /* 按鈕區：改為單列垂直堆疊，更好按 */
-        .button-group { 
-            display: flex;
-            flex-direction: column;
-            gap: 15px; 
-            width: 100%;
-        }
-
-        /* 基礎按鈕樣式 */
-        .menu-btn {
-            width: 100%;
-            padding: 18px 10px;
-            border-radius: 15px;
-            font-size: 1.1rem;
-            letter-spacing: 2px;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-            text-decoration: none;
-            box-sizing: border-box;
-        }
-
-        /* 未開放模式按鈕 */
-        .menu-btn.dev-btn {
-            background: rgba(0,0,0,0.2);
-            border: 1px solid rgba(255,255,255,0.1);
-            color: var(--text-muted);
-            cursor: not-allowed; 
-        }
-
-        /* 主要行動按鈕 (四人開桌) */
-        .menu-btn.primary-btn {
-            background: linear-gradient(135deg, #d4af37, #b5952f);
-            color: #111;
-            border: none;
-            cursor: pointer;
-            font-weight: bold;
-            box-shadow: 0 8px 20px rgba(212, 175, 55, 0.25);
-        }
-
-        .menu-btn.primary-btn:hover {
-            transform: scale(1.03); 
-            box-shadow: 0 12px 25px rgba(212, 175, 55, 0.4);
-        }
-
-        .menu-btn span { 
-            font-size: 0.8rem; display: block; 
-            font-weight: normal; opacity: 0.7; 
-            margin-top: 5px; letter-spacing: 1px; 
-        }
-        
-        /* 針對窄螢幕微調 */
-        @media screen and (max-width: 380px) {
-            .title-area h1 { font-size: 2.8rem; letter-spacing: 8px; }
-            .menu-card { padding: 30px 20px; }
-            .menu-btn { padding: 15px 5px; font-size: 1rem; }
-        }
-    </style>
 </head>
 <body>
 
     <div class="main-menu">
         <div class="menu-card">
+            <div id="card-stream-container"></div>
             <div class="title-area">
                 <h1>橋牌</h1>
             </div>
 
             <div class="button-group">
-                <button class="menu-btn primary-btn" onclick="goToGame(4)">
-                    四人開桌 <span>標準 2 vs 2 連線對戰</span>
+                
+                <button class="circle-btn btn-single" onclick="window.location.href='one_people.html'">
+                    <span class="main-text">單人</span>
+                    <span class="sub-text">單人對戰</span>
                 </button>
 
-                <button class="menu-btn primary-btn" onclick="window.location.href='one_people.html'" style="background: linear-gradient(135deg, #27ae60, #2ecc71); box-shadow: 0 8px 20px rgba(46, 204, 113, 0.25);">
-                    一人模式 <span>練習 & AI 對弈</span>
+                <button class="circle-btn btn-multi" onclick="alert('多人連線模式正在精心打造中！')">
+                    <span class="main-text">多人</span>
+                    <span class="sub-text">連線對戰</span>
                 </button>
 
-                <button class="menu-btn dev-btn" onclick="alert('二人模式正在精心打造中！')">
-                    二人模式 <span>快速配對隊友</span>
-                </button>
-                <button class="menu-btn dev-btn" onclick="alert('三人模式正在精心打造中！')">
-                    三人模式 <span>特殊挑戰規則</span>
-                </button>
             </div>
         </div>
     </div>
