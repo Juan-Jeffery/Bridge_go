@@ -1,64 +1,190 @@
-/* 檔案路徑：css/main.css */
+/* ==========================================
+   橋牌大廳 - 入口樣式 (index.css)
+   包含：純淨架構、莫蘭迪灰湖綠底色、上下圓形雙按鈕
+========================================== */
 
 :root {
-    --bridge-green: #1a5d1a;
-    --btn-gold: #f1c40f;
-    --text-white: #ecf0f1;
-    --bg-dark: #1a3c14; /* 預留給大廳使用 */
+    /* 🌟 完美同步 game.css 的莫蘭迪色系 */
+    --premium-bg: #7EA59F;      /* 灰湖綠底色 */
+    --premium-dark: #2c3440;    /* 質感深藍灰 */
+    --premium-gold: #e8c56a;    /* 柔和金 */
+    --text-soft: #f0f0f0;
+    
+    /* 四家專屬顏色 (用於按鈕搭配) */
+    --team-blue: #5F8AAF;       /* 丹寧藍 */
+    --team-yellow: #E0A800;     /* 琥珀黃 */
 }
 
 body, html {
-    margin: 0; padding: 0;
-    width: 100%; height: 100%;
+    height: 100%; margin: 0;
     overflow: hidden;
     font-family: "PingFang TC", "Microsoft JhengHei", sans-serif;
-    background: radial-gradient(circle, #2d5a27 0%, #1a3c14 100%);
+    /* 🌟 同步遊戲桌面的微立體漸層背景 */
+    background: radial-gradient(circle, #8bb5af 0%, #7EA59F 100%);
+    color: var(--text-soft);
 }
 
-/* 轉向提示遮罩 */
-#orientation-overlay {
-    display: none;
-    position: fixed;
-    top: 0; left: 0; width: 100vw; height: 100vh;
-    background: #000; color: white; z-index: 1000;
-    flex-direction: column; justify-content: center; align-items: center;
-    text-align: center;
-}
-
-@media screen and (orientation: portrait) {
-    #orientation-overlay { display: flex; }
-    .main-menu { display: none; }
-}
-
-/* 主選單容器 */
 .main-menu {
     display: flex; flex-direction: column;
     justify-content: center; align-items: center;
-    height: 100%;
+    height: 100dvh;
+    padding: 20px;
+    box-sizing: border-box;
 }
 
-.title-area { margin-bottom: 30px; text-shadow: 2px 4px 10px rgba(0,0,0,0.5); }
-.title-area h1 { font-size: 3rem; color: var(--btn-gold); margin: 0; letter-spacing: 10px; }
+/* 🌟 尊爵卡片容器 (莫蘭迪深色毛玻璃) */
+.menu-card {
+    background: linear-gradient(145deg, rgba(58, 77, 99, 0.85) 0%, rgba(44, 52, 64, 0.95) 100%);
+    border-radius: 25px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    padding: 50px 30px;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+    backdrop-filter: blur(10px);
+    
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 40px; 
+    width: 100%;
+    max-width: 400px;
+    box-sizing: border-box;
+}
 
-.button-group { display: flex; flex-direction: column; gap: 15px; width: 320px; }
+/* 標題區 */
+.title-area { text-align: center; }
+.title-area h1 { 
+    font-size: 3.5rem; 
+    color: var(--premium-gold); 
+    margin: 0; 
+    letter-spacing: 12px; 
+    font-weight: 900; 
+    text-shadow: 0 5px 15px rgba(232, 197, 106, 0.3);
+}
 
-.menu-btn {
-    background: rgba(255, 255, 255, 0.1);
-    border: 2px solid var(--btn-gold);
-    color: var(--btn-gold);
-    padding: 12px 0;
-    font-size: 1.1rem;
-    border-radius: 50px;
+/* 🌟 按鈕區：上下垂直置中排列 */
+.button-group { 
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 30px; 
+    width: 100%;
+}
+
+/* 🌟 圓形大按鈕基礎設計 */
+.circle-btn {
+    width: 140px;       /* 寬高相等，形成正圓 */
+    height: 140px;
+    border-radius: 50%; 
+    border: none;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
     cursor: pointer;
-    transition: all 0.3s;
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1.2); /* 微彈跳動畫 */
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+    text-decoration: none;
+}
+
+/* 滑鼠移上去的浮起特效 */
+.circle-btn:hover {
+    transform: translateY(-5px) scale(1.05);
+}
+
+/* 點擊壓下的特效 */
+.circle-btn:active {
+    transform: translateY(2px) scale(0.95);
+    box-shadow: 0 5px 10px rgba(0, 0, 0, 0.3);
+}
+
+/* 圓形按鈕內的文字 */
+.circle-btn .main-text {
+    font-size: 1.8rem;
     font-weight: bold;
-    text-align: center;
+    letter-spacing: 4px;
+    margin-bottom: 5px;
+    margin-right: -4px; /* 修正 letter-spacing 造成的視覺不置中 */
 }
 
-.menu-btn:hover {
-    background: var(--btn-gold);
-    color: #1a3c14;
-    transform: scale(1.05);
+.circle-btn .sub-text {
+    font-size: 0.9rem;
+    opacity: 0.85;
+    letter-spacing: 1px;
 }
 
-.menu-btn span { font-size: 0.75rem; display: block; font-weight: normal; opacity: 0.8; }
+/* 🌟 單人模式按鈕 (套用南家的丹寧藍) */
+.btn-single {
+    background: linear-gradient(135deg, #749bc2, var(--team-blue));
+    color: white;
+    border: 2px solid rgba(255,255,255,0.2);
+}
+.btn-single:hover {
+    box-shadow: 0 12px 30px rgba(95, 138, 175, 0.5);
+}
+
+/* 🌟 多人模式按鈕 (套用西家的琥珀黃) */
+.btn-multi {
+    background: linear-gradient(135deg, #f2d780, var(--team-yellow));
+    color: #222; /* 黃色底配深色字才清楚 */
+    border: 2px solid rgba(255,255,255,0.4);
+}
+.btn-multi:hover {
+    box-shadow: 0 12px 30px rgba(224, 168, 0, 0.4);
+}
+/* ==========================================
+   🌟 背景撲克牌流動特效
+========================================== */
+
+/* 1. 確保卡片可以關住特效，牌不會跑到湖綠色背景上 */
+.menu-card {
+    position: relative; 
+    overflow: hidden; 
+}
+
+/* 2. 確保原本的標題跟按鈕不會被撲克牌蓋住 */
+.title-area, .button-group {
+    position: relative;
+    z-index: 1; 
+}
+
+/* 3. 特效容器設定 */
+#card-stream-container {
+    position: absolute;
+    top: 0; left: 0; width: 100%; height: 100%;
+    z-index: 0; /* 墊在文字底下，背景之上 */
+    pointer-events: none; /* 絕對不能擋到滑鼠點擊 */
+}
+
+/* 4. 單條撲克牌流的基礎樣式 */
+.floating-card-stream {
+    position: absolute;
+    font-size: 1.8rem;
+    font-weight: bold;
+    color: rgb(255, 255, 255); /* 非常低調的半透明白色，不搶戲 */
+    white-space: nowrap;
+}
+
+/* 5. 動畫：由左上到右下 */
+@keyframes flow-diagonal {
+    0% { transform: translate(-50%, -50%) rotate(25deg); opacity: 0; }
+    10% { opacity: 1; }
+    90% { opacity: 1; }
+    100% { transform: translate(150%, 150%) rotate(25deg); opacity: 0; }
+}
+
+/* 6. 動畫：正左到正右 */
+@keyframes flow-horizontal {
+    0% { transform: translateX(-50%); opacity: 0; }
+    10% { opacity: 1; }
+    90% { opacity: 1; }
+    100% { transform: translateX(150%); opacity: 0; }
+}
+
+/* 針對小螢幕手機微調 */
+@media screen and (max-width: 380px) {
+    .title-area h1 { font-size: 2.8rem; letter-spacing: 8px; }
+    .menu-card { padding: 30px 20px; gap: 30px; }
+    .circle-btn { width: 120px; height: 120px; }
+    .circle-btn .main-text { font-size: 1.5rem; }
+    .circle-btn .sub-text { font-size: 0.8rem; }
+}
