@@ -1,20 +1,17 @@
 // ==========================================
-// 橋牌單人模式 - 核心邏輯腳本 (專業競技優化版 + Wi-Fi燒線)
+// 單機模式控制器 (View & Controller) - one_people.js
 // ==========================================
 
 // --- 1. 全域變數與遊戲狀態 ---
 const myRole = "south"; 
 const roles = ["south", "west", "north", "east"];
 const currentPlayersData = {
-    south: { name: "你" },
-    west: { name: "電腦 (西)" },
-    north: { name: "電腦 (北)" },
-    east: { name: "電腦 (東)" }
+    south: { name: "你" }, west: { name: "電腦 (西)" }, north: { name: "電腦 (北)" }, east: { name: "電腦 (東)" }
 };
 
-let trickHistory = []; // 🌟 用來記錄每一墩出牌順序與贏家的歷史簿
+let trickHistory = []; 
 let hands = { south: [], west: [], north: [], east: [] };
-let tableCards = {}; // 記錄桌面上打出的牌
+let tableCards = {}; 
 let currentBiddingState = null; 
 let currentTurnGlobally = "south"; 
 let scores = { ns: 0, ew: 0 };
@@ -22,12 +19,10 @@ let personalScores = { south: 0, west: 0, north: 0, east: 0 };
 let selectedCardIndex = -1;
 let isRendering = false;
 let gameFinished = false;
-
-// 🌟 全域計時與狀態變數
 let turnTimerInterval = null; 
-let isGamePaused = false; // 修復：新增暫停狀態變數
+let isGamePaused = false; 
 
-// --- 2. 遊戲初始化與洗牌 ---
+// --- 2. 遊戲初始化 ---
 function initializeGame() {
     document.getElementById('loading').style.display = 'none';
     updatePlayerLabels();
@@ -38,99 +33,55 @@ function setupNewDeck() {
     gameFinished = false;
     document.getElementById('victory-overlay').classList.remove('show');
     
-    // 生成撲克牌並洗牌
-    const suits = ['♠', '♥', '♦', '♣'], values = ['A', 'K', 'Q', 'J', '10', '9', '8', '7', '6', '5', '4', '3', '2'];
-    let deck = []; 
-    suits.forEach(s => values.forEach(v => deck.push({s, v})));
-    deck.sort(() => Math.random() - 0.5);
-    
-    // 發牌並排序
+    // 呼叫 BRIDGE_RULES 幫忙洗牌與排序
+    let deck = BRIDGE_RULES.generateDeck();
     hands = { 
-        south: sortHand(deck.slice(0, 13)), 
-        west: sortHand(deck.slice(13, 26)), 
-        north: sortHand(deck.slice(26, 39)), 
-        east: sortHand(deck.slice(39, 52)) 
+        south: BRIDGE_RULES.sortHand(deck.slice(0, 13)), 
+        west: BRIDGE_RULES.sortHand(deck.slice(13, 26)), 
+        north: BRIDGE_RULES.sortHand(deck.slice(26, 39)), 
+        east: BRIDGE_RULES.sortHand(deck.slice(39, 52)) 
     };
     
-    // 重置所有分數與狀態
     scores = { ns: 0, ew: 0 };
     personalScores = { south: 0, west: 0, north: 0, east: 0 };
-    tableCards = {};
-    trickHistory = [];
-    updateScoreboardUI();
-    updatePersonalTrickPiles();
+    tableCards = {}; trickHistory = [];
+    updateScoreboardUI(); updatePersonalTrickPiles();
     
     currentBiddingState = {
-        status: "active", turn: "south", currentBid: null, passCount: 0, history: [], contract: null,
-        botHasBidded: { west: false, north: false, east: false } 
+        status: "active", turn: "south", currentBid: null, passCount: 0, history: [], contract: null, botHasBidded: { west: false, north: false, east: false } 
     };
     
     setTurn("south");
-    renderTable();
-    updateContractUI(null);
+    renderTable(); updateContractUI(null);
 }
 
-// --- 3. 輪次控制引擎 ---
+// --- 3. 輪次引擎 ---
 function setTurn(nextRole) {
     currentTurnGlobally = nextRole;
-    
-    if (currentBiddingState.status === "active") {
-        currentBiddingState.turn = nextRole;
-        renderBiddingUI();
-    }
-    
-    updateTurnUI();
-    renderHand(); 
+    if (currentBiddingState.status === "active") { currentBiddingState.turn = nextRole; renderBiddingUI(); }
+    updateTurnUI(); renderHand(); 
 
-    // 觸發電腦行動
     if (nextRole !== myRole && nextRole !== "waiting" && !gameFinished) {
-        if (currentBiddingState.status === "active") {
-            setTimeout(() => botBid(nextRole), 1500);
-        } else if (currentBiddingState.status === "finished") {
-            setTimeout(() => botPlay(nextRole), 1500);
-        }
+        if (currentBiddingState.status === "active") setTimeout(() => botBid(nextRole), 1500);
+        else if (currentBiddingState.status === "finished") setTimeout(() => botPlay(nextRole), 1500);
     }
 }
 
-// ==========================================
-// 🤖 電腦 AI 邏輯 (喊牌與打牌)
-// ==========================================
-const suitRanks = { '♣': 1, '♦': 2, '♥': 3, '♠': 4, 'NT': 5 };
-
+// --- 4. 委託 COMPUTER_AI 代打 ---
 function botBid(botRole) {
-    if (currentBiddingState.botHasBidded[botRole]) {
-        submitBid('Pass', null, botRole); return;
-    }
-    let botHand = hands[botRole];
-    let suitCounts = { '♠': 0, '♥': 0, '♦': 0, '♣': 0 };
-    botHand.forEach(card => suitCounts[card.s]++);
+    if (currentBiddingState.botHasBidded[botRole]) { submitBid('Pass', null, botRole); return; }
     
-    let bestSuit = '♣', maxCount = 0;
-    for (let s in suitCounts) { if (suitCounts[s] > maxCount) { maxCount = suitCounts[s]; bestSuit = s; } }
-
-    let targetLevel = 1, canBid = true;
-
-    if (currentBiddingState.currentBid) {
-        let curLevel = currentBiddingState.currentBid.level;
-        let curSuitRank = suitRanks[currentBiddingState.currentBid.suit];
-        let mySuitRank = suitRanks[bestSuit];
-
-        if (curLevel >= 2 && (curLevel > 2 || mySuitRank <= curSuitRank)) canBid = false; 
-        else if (curLevel === 1) targetLevel = (mySuitRank > curSuitRank) ? 1 : 2;
-        else if (curLevel === 2) { if (mySuitRank > curSuitRank) targetLevel = 2; else canBid = false; }
-    }
-
-    if (canBid) { currentBiddingState.botHasBidded[botRole] = true; submitBid(targetLevel, bestSuit, botRole); } 
-    else submitBid('Pass', null, botRole);
+    let bidResult = COMPUTER_AI.getBid(hands[botRole], currentBiddingState.currentBid);
+    
+    if (bidResult === 'Pass') submitBid('Pass', null, botRole);
+    else { currentBiddingState.botHasBidded[botRole] = true; submitBid(bidResult.level, bidResult.suit, botRole); }
 }
 
 function botPlay(botRole) {
     let botHand = hands[botRole];
     if (botHand.length === 0) return;
-    let leadSuit = Object.keys(tableCards).length > 0 ? Object.values(tableCards)[0].s : null;
-    let validCards = (leadSuit && botHand.some(c => c.s === leadSuit)) ? botHand.filter(c => c.s === leadSuit) : botHand;
 
-    let chosenCard = validCards[Math.floor(Math.random() * validCards.length)];
+    let chosenCard = COMPUTER_AI.getPlayCard(botHand, tableCards);
     let cardIndex = botHand.indexOf(chosenCard);
 
     hands[botRole].splice(cardIndex, 1);
@@ -139,9 +90,7 @@ function botPlay(botRole) {
     renderTable(); checkTableFull();
 }
 
-// ==========================================
-// 📢 喊牌系統 UI 與邏輯
-// ==========================================
+// --- 5. UI 渲染 (已移除色碼，改用 CSS 變數) ---
 function renderBiddingUI() {
     if (currentBiddingState.status !== "finished") updateContractUI(null);
     const modal = document.getElementById('bidding-modal');
@@ -153,11 +102,13 @@ function renderBiddingUI() {
     modal.style.display = "block"; modal.classList.remove('fly-to-top-left');
 
     const historyDiv = document.getElementById('bidding-history');
+    
+    // 改用 CSS 變數設定顏色
     const getPlayerColor = (name) => {
-        if (name.includes("你") || name.includes("南")) return "#5470c6"; 
-        if (name.includes("西")) return "#fbd347"; 
-        if (name.includes("北")) return "#b32e2e"; 
-        if (name.includes("東")) return "#628e46"; 
+        if (name.includes("你") || name.includes("南")) return "var(--team-blue)"; 
+        if (name.includes("西")) return "var(--team-yellow)"; 
+        if (name.includes("北")) return "var(--team-red)"; 
+        if (name.includes("東")) return "var(--team-green)"; 
         return "white";
     };
 
@@ -194,8 +145,8 @@ function renderBiddingUI() {
             
             let isDisabled = !isMyTurn;
             if (currentBiddingState.currentBid) {
-                const curLevel = currentBiddingState.currentBid.level, curRank = suitRanks[currentBiddingState.currentBid.suit];
-                if (level < curLevel || (level === curLevel && suitRanks[suit] <= curRank)) isDisabled = true;
+                const curLevel = currentBiddingState.currentBid.level, curRank = BRIDGE_RULES.suitRanks[currentBiddingState.currentBid.suit];
+                if (level < curLevel || (level === curLevel && BRIDGE_RULES.suitRanks[suit] <= curRank)) isDisabled = true;
             }
             btn.disabled = isDisabled; 
 
@@ -203,8 +154,8 @@ function renderBiddingUI() {
                 let playerColor = bidColorsMap[bidStr];
                 btn.style.backgroundColor = playerColor; btn.style.filter = "none";
                 btn.style.opacity = "0.85"; btn.style.border = "none";
-                btn.style.color = (playerColor === "#fbd347") ? "black" : "white"; 
-                btn.innerHTML = `${level}<span style="color:${(playerColor === '#fbd347') ? 'black' : 'white'}">${suit}</span>`;
+                btn.style.color = (playerColor === "var(--team-yellow)") ? "black" : "white"; 
+                btn.innerHTML = `${level}<span style="color:${(playerColor === 'var(--team-yellow)') ? 'black' : 'white'}">${suit}</span>`;
             }
 
             btn.onclick = () => submitBid(level, suit, myRole); 
@@ -234,18 +185,14 @@ function submitBid(level, suit, actorRole = myRole) {
 function finishBidding(winningBid) {
     currentBiddingState.contract = {
         level: winningBid.level, suit: winningBid.suit, declarer: winningBid.player,
-        declarerName: winningBid.name, team: (winningBid.player === 'south' || winningBid.player === 'north') ? 'NS' : 'EW',
-        targetTricks: winningBid.level + 6
+        declarerName: winningBid.name, team: (winningBid.player === 'south' || winningBid.player === 'north') ? 'NS' : 'EW', targetTricks: winningBid.level + 6
     };
     currentBiddingState.status = "finished";
-    
     updateScoreboardUI(); updatePersonalTrickPiles(); renderBiddingUI(); 
     setTurn(roles[(roles.indexOf(winningBid.player) + 1) % 4]);
 }
 
-// ==========================================
-// 🃏 出牌桌面與打牌邏輯
-// ==========================================
+// --- 6. 桌面渲染與出牌邏輯 ---
 function renderHand() {
     if (isRendering) return; isRendering = true;
     const container = document.getElementById('my-hand'); container.innerHTML = "";
@@ -291,16 +238,10 @@ function renderTable() {
     if (Object.keys(tableCards).length === 0) { Object.values(slots).forEach(slot => { if (slot) slot.innerHTML = ""; }); return; }
 
     const cardsArray = Object.values(tableCards);
-    const leadSuit = cardsArray[0].s, trumpSuit = (currentBiddingState && currentBiddingState.contract && currentBiddingState.contract.suit !== 'NT') ? currentBiddingState.contract.suit : null;
-    const vals = {'A':14, 'K':13, 'Q':12, 'J':11, '10':10, '9':9, '8':8, '7':7, '6':6, '5':5, '4':4, '3':3, '2':2};
+    const trumpSuit = (currentBiddingState && currentBiddingState.contract && currentBiddingState.contract.suit !== 'NT') ? currentBiddingState.contract.suit : null;
     
-    let bestCard = cardsArray[0];
-    cardsArray.forEach(c => {
-        let isCT = (c.s === trumpSuit), isBT = (bestCard.s === trumpSuit);
-        if (isCT && !isBT) bestCard = c;
-        else if (isCT && isBT) { if(vals[c.v] > vals[bestCard.v]) bestCard = c; }
-        else if (!isCT && !isBT && c.s === leadSuit && bestCard.s === leadSuit) { if(vals[c.v] > vals[bestCard.v]) bestCard = c; }
-    });
+    // 呼叫 BRIDGE_RULES 幫忙找最大的牌
+    let bestCard = BRIDGE_RULES.getTrickWinner(cardsArray, trumpSuit);
 
     Object.entries(tableCards).forEach(([role, data]) => {
         const targetSlot = slots[role]; if (!targetSlot) return;
@@ -321,19 +262,12 @@ function checkTableFull() {
 }
 
 function resolveTrick() {
-    const cardsArray = Object.values(tableCards), leadSuit = cardsArray[0].s; 
+    const cardsArray = Object.values(tableCards);
     const trumpSuit = currentBiddingState.contract.suit !== 'NT' ? currentBiddingState.contract.suit : null;
-    const vals = {'A':14, 'K':13, 'Q':12, 'J':11, '10':10, '9':9, '8':8, '7':7, '6':6, '5':5, '4':4, '3':3, '2':2};
     
-    let winner = cardsArray[0]; 
-    cardsArray.forEach(c => { 
-        let isCT = (c.s === trumpSuit), isBT = (winner.s === trumpSuit);
-        if (isCT && !isBT) winner = c;
-        else if (isCT && isBT) { if (vals[c.v] > vals[winner.v]) winner = c; }
-        else if (!isCT && !isBT && c.s === leadSuit && winner.s === leadSuit) { if (vals[c.v] > vals[winner.v]) winner = c; }
-    }); // 修復：補上這裡遺漏的括號！
+    // 呼叫 BRIDGE_RULES 幫忙找贏家
+    let winner = BRIDGE_RULES.getTrickWinner(cardsArray, trumpSuit);
 
-    // 修復：將 trickHistory 移出迴圈外，確保只記錄一次
     trickHistory.push({
         winnerRole: winner.from,
         cards: cardsArray.map(c => ({ role: c.from, suit: c.s, val: c.v }))
@@ -342,9 +276,6 @@ function resolveTrick() {
     playTrickAnimation(winner.from);
 }
 
-// ==========================================
-// 🚀 特效與動畫 (霸氣吃墩結算版)
-// ==========================================
 function playTrickAnimation(winnerRole) {
     const phantomCards = [], myIdx = roles.indexOf(myRole), posMap = ['bottom', 'left', 'top', 'right'];
     const winnerPos = posMap[(roles.indexOf(winnerRole) - myIdx + 4) % 4];
@@ -357,12 +288,10 @@ function playTrickAnimation(winnerRole) {
         if (cardEl) {
             const startRect = cardEl.getBoundingClientRect(), flyingCard = cardEl.cloneNode(true);
             flyingCard.classList.remove('table-card', 'best-card'); flyingCard.classList.add('flying');
-            
             flyingCard.style.left = startRect.left + 'px'; flyingCard.style.top = startRect.top + 'px';
             flyingCard.style.width = startRect.width + 'px'; flyingCard.style.height = startRect.height + 'px';
             flyingCard.style.margin = '0';
             flyingCard.style.setProperty('z-index', (role === winnerRole) ? '10000' : '9998', 'important');
-
             cardEl.style.visibility = 'hidden'; phantomCards.push({ role: role, el: flyingCard, startRect: startRect });
         }
     });
@@ -374,12 +303,10 @@ function playTrickAnimation(winnerRole) {
     const cy = window.innerHeight / 2 - phantomCards[0].startRect.height / 2;
 
     phantomCards.forEach(pc => {
-        if (pc.role === winnerRole) {
-            requestAnimationFrame(() => {
-                pc.el.style.left = cx + 'px'; pc.el.style.top = cy + 'px';
-                pc.el.style.transform = 'scale(1.5)'; pc.el.style.boxShadow = '0 20px 50px rgba(212, 175, 55, 0.6)';
-            });
-        }
+        if (pc.role === winnerRole) requestAnimationFrame(() => {
+            pc.el.style.left = cx + 'px'; pc.el.style.top = cy + 'px';
+            pc.el.style.transform = 'scale(1.5)'; pc.el.style.boxShadow = '0 20px 50px rgba(212, 175, 55, 0.6)';
+        });
     });
 
     setTimeout(() => {
@@ -405,12 +332,9 @@ function playTrickAnimation(winnerRole) {
     }, 1400); 
 }
 
-// ==========================================
-// 🎨 UI 狀態更新器與 🌟Wi-Fi 燒線引擎
-// ==========================================
+// --- 7. UI 更新與輔助工具 ---
 function updateTurnUI() {
     let activeRole = (currentBiddingState && currentBiddingState.status !== "finished") ? currentBiddingState.turn : currentTurnGlobally;
-
     ['south', 'north', 'west', 'east'].forEach(role => {
         let dot = document.getElementById(`dot-${role}`);
         if(dot) dot.classList.remove('dot-active');
@@ -420,90 +344,47 @@ function updateTurnUI() {
         let activeDot = document.getElementById(`dot-${activeRole}`);
         if(activeDot) activeDot.classList.add('dot-active');
         updateFlameEffect(activeRole); 
-        
         startBurnLine(activeRole);
-    } else {
-        startBurnLine('waiting'); 
-    }
+    } else { startBurnLine('waiting'); }
 }
 
-// --- 🌟 時鐘燒線機制核心 ---
-let timeElapsed = 0; // 紀錄經過的毫秒數
-const TURN_DURATION = 20000; // 總思考時間 20 秒 (20000毫秒)
+let timeElapsed = 0; const TURN_DURATION = 20000; 
 
 function startBurnLine(role) {
     clearInterval(turnTimerInterval);
-    
-    // 1. 每次換人，先清除所有圓點的燒線狀態，讓圓點恢復正常
-    document.querySelectorAll('.dot').forEach(d => {
-        d.style.removeProperty('--burn-pct');
-        d.classList.remove('burning');
-    });
+    document.querySelectorAll('.dot').forEach(d => { d.style.removeProperty('--burn-pct'); d.classList.remove('burning'); });
 
     if (role === 'waiting' || gameFinished) return;
-
-    // 2. 找到當前玩家的圓點
-    let dot = document.getElementById(`dot-${role}`);
-    if (!dot) return;
+    let dot = document.getElementById(`dot-${role}`); if (!dot) return;
     
-    // 3. 加上時鐘燒線的 class
-    dot.classList.add('burning');
-    timeElapsed = 0;
+    dot.classList.add('burning'); timeElapsed = 0;
 
-    // 4. 以每 50 毫秒的超高更新率，讓圓餅圖非常滑順地變白
     turnTimerInterval = setInterval(() => {
-        if (isGamePaused) return; // 暫停看規則時，時間完全凍結！
-        
-        timeElapsed += 50; // 增加 50 毫秒
-        let pct = (timeElapsed / TURN_DURATION) * 100;
-        
-        // 將計算好的百分比傳給 CSS，自動畫出對應的圓餅比例
+        if (isGamePaused) return; 
+        timeElapsed += 50; let pct = (timeElapsed / TURN_DURATION) * 100;
         dot.style.setProperty('--burn-pct', `${pct}%`);
 
-        // 時間到，燒滿全白！
         if (timeElapsed >= TURN_DURATION) {
             clearInterval(turnTimerInterval);
-            dot.style.removeProperty('--burn-pct');
-            dot.classList.remove('burning');
-            
-            // 如果輪到你，觸發自動代打
-            if (role === myRole && currentTurnGlobally === myRole) {
-                handlePlayerTimeout();
-            }
+            dot.style.removeProperty('--burn-pct'); dot.classList.remove('burning');
+            if (role === myRole && currentTurnGlobally === myRole) handlePlayerTimeout();
         }
-    }, 50); // 每 50 毫秒更新一次畫面
+    }, 50); 
 }
 
-// ==========================================
-// 🌟 玩家超時防掛機：自動喊牌與出牌邏輯
-// ==========================================
 function handlePlayerTimeout() {
-    if (currentBiddingState.status === "active") {
-        submitBid('Pass', null, myRole);
-        
-    } else if (currentBiddingState.status === "finished") {
+    if (currentBiddingState.status === "active") submitBid('Pass', null, myRole);
+    else if (currentBiddingState.status === "finished") {
         let myHand = hands[myRole];
         if (myHand.length === 0) return;
-
-        let cardsOnTable = Object.values(tableCards);
-        let leadSuit = cardsOnTable.length > 0 ? cardsOnTable[0].s : null;
-        let validCards = myHand;
-
-        if (leadSuit && myHand.some(c => c.s === leadSuit)) {
-            validCards = myHand.filter(c => c.s === leadSuit);
-        }
-
-        let chosenCard = validCards[Math.floor(Math.random() * validCards.length)];
+        
+        let chosenCard = COMPUTER_AI.getPlayCard(myHand, tableCards);
         let cardIndex = myHand.indexOf(chosenCard);
-
         selectedCardIndex = -1; 
         let playedCard = hands[myRole].splice(cardIndex, 1)[0]; 
         tableCards[myRole] = { from: myRole, playerName: "你", ...playedCard };
         
-        isRendering = false;
-        renderHand();      
-        renderTable();     
-        checkTableFull();  
+        isRendering = false; renderHand(); renderTable(); checkTableFull();  
     }
 }
 
@@ -522,7 +403,7 @@ function updateScoreboardUI() {
 function updateContractUI(contract) {
     const displayEl = document.getElementById('contract-display');
     if (!contract) return; 
-    const colorHexMap = { 'south': '#5470c6', 'west': '#fbd347', 'north': '#b32e2e', 'east': '#628e46' };
+    const colorHexMap = { 'south': 'var(--team-blue)', 'west': 'var(--team-yellow)', 'north': 'var(--team-red)', 'east': 'var(--team-green)' };
     const cColor = colorHexMap[contract.declarer] || '#333';
     displayEl.innerHTML = `<span style="color: ${cColor}; font-size: 1.3rem; font-weight: 900; text-shadow: 1px 1px 0px rgba(255,255,255,0.5); margin-left: 5px;">${contract.level}${contract.suit}</span>`;
 }
@@ -549,9 +430,7 @@ function updateFlameEffect(t) {
     if(t && roles.includes(t)) document.getElementById(`label-${pos[(roles.indexOf(t)-myIdx+4)%4]}`).classList.add('active-turn');
 }
 
-// ==========================================
-// 🏆 遊戲結算與工具
-// ==========================================
+// --- 8. 結算畫面 ---
 function checkGameEnd() {
     if (!currentBiddingState || !currentBiddingState.contract) return;
     const c = currentBiddingState.contract; let isGameOver = false;
@@ -566,98 +445,53 @@ function checkGameEnd() {
 
 function showVictoryScreen() {
     const c = currentBiddingState.contract;
-    
-    // 判斷勝方
     let winTeam = (c.team === 'NS') ? (scores.ns >= c.targetTricks ? "NS" : "EW") : (scores.ew >= c.targetTricks ? "EW" : "NS");
     
-    // 設定大標題 (勝利亮金，失敗灰暗)
     let titleEl = document.getElementById('victory-title');
     titleEl.innerText = (winTeam === 'NS') ? "Victory" : "Defeat";
     titleEl.style.color = (winTeam === 'NS') ? "#fbd347" : "#95a5a6"; 
     
-    // 計算雙方的目標分數
     let nsT = c.team === 'NS' ? c.targetTricks : 14 - c.targetTricks;
     let ewT = c.team === 'EW' ? c.targetTricks : 14 - c.targetTricks;
     
-    // 更新極簡分數板的 X/Y
     document.getElementById('v-score-ns-text').innerText = `${scores.ns || 0}/${nsT}`;
     document.getElementById('v-score-ew-text').innerText = `${scores.ew || 0}/${ewT}`;
     
-    // 綁定「再來一場」
     const btnAgain = document.getElementById('btn-again');
-    if (btnAgain) { 
-        btnAgain.onclick = setupNewDeck; 
-        btnAgain.innerText = "再來一場"; 
-    }
+    if (btnAgain) { btnAgain.onclick = setupNewDeck; btnAgain.innerText = "再來一場"; }
     renderTrickReview(); 
     document.getElementById('victory-overlay').classList.add('show');
 }
 
-function sortHand(hand) {
-    const suitOrder = {'♠': 4, '♥': 3, '♦': 2, '♣': 1}, valOrder = {'A':14, 'K':13, 'Q':12, 'J':11, '10':10, '9':9, '8':8, '7':7, '6':6, '5':5, '4':4, '3':3, '2':2};
-    return hand.sort((a, b) => suitOrder[a.s] !== suitOrder[b.s] ? suitOrder[b.s] - suitOrder[a.s] : valOrder[b.v] - valOrder[a.v]).reverse();
-}
-
-// 🌟 點擊背景取消選牌
-document.addEventListener('click', () => { if (selectedCardIndex !== -1) { selectedCardIndex = -1; renderHand(); } });
-
-// ==========================================
-// 🌟 遊戲規則按鈕 (Hover/觸控 暫停機制)
-// ==========================================
-const btnRules = document.getElementById('btn-rules');
-const rulesModal = document.getElementById('rules-overlay');
-
-const showRules = (e) => {
-    e.preventDefault();
-    isGamePaused = true; 
-    rulesModal.style.display = 'block';
-};
-
-const hideRules = (e) => {
-    e.preventDefault();
-    isGamePaused = false; 
-    rulesModal.style.display = 'none';
-};
-
-if (btnRules) {
-    btnRules.addEventListener('mouseenter', showRules);
-    btnRules.addEventListener('mouseleave', hideRules);
-    btnRules.addEventListener('touchstart', showRules, { passive: false });
-    btnRules.addEventListener('touchend', hideRules);
-    btnRules.addEventListener('touchcancel', hideRules);
-}
-
-// ==========================================
-// 🌟 繪製結算復盤畫面
-// ==========================================
 function renderTrickReview() {
     const container = document.getElementById('review-scrollarea');
-    if (!container) return;
-    container.innerHTML = ""; 
+    if (!container) return; container.innerHTML = ""; 
 
     trickHistory.forEach((trick, index) => {
-        const row = document.createElement('div');
-        row.className = 'v-trick-row';
-        
+        const row = document.createElement('div'); row.className = 'v-trick-row';
         row.innerHTML = `<span class="v-trick-label">T${index + 1}</span>`;
         
-        const cardsDiv = document.createElement('div');
-        cardsDiv.className = 'v-trick-cards';
-        
+        const cardsDiv = document.createElement('div'); cardsDiv.className = 'v-trick-cards';
         trick.cards.forEach(c => {
             const isWinner = (c.role === trick.winnerRole) ? 'winner-card' : '';
             const colorClass = (c.suit === '♥' || c.suit === '♦') ? 'red' : '';
-            
-            cardsDiv.innerHTML += `
-                <div class="mini-card border-${c.role} ${isWinner}">
-                    ${c.val}<span class="${colorClass}">${c.suit}</span>
-                </div>
-            `;
+            cardsDiv.innerHTML += `<div class="mini-card border-${c.role} ${isWinner}">${c.val}<span class="${colorClass}">${c.suit}</span></div>`;
         });
-        
-        row.appendChild(cardsDiv);
-        container.appendChild(row);
+        row.appendChild(cardsDiv); container.appendChild(row);
     });
+}
+
+// --- 9. 事件監聽與啟動 ---
+document.addEventListener('click', () => { if (selectedCardIndex !== -1) { selectedCardIndex = -1; renderHand(); } });
+
+const btnRules = document.getElementById('btn-rules'), rulesModal = document.getElementById('rules-overlay');
+const showRules = (e) => { e.preventDefault(); isGamePaused = true; rulesModal.style.display = 'block'; };
+const hideRules = (e) => { e.preventDefault(); isGamePaused = false; rulesModal.style.display = 'none'; };
+
+if (btnRules) {
+    btnRules.addEventListener('mouseenter', showRules); btnRules.addEventListener('mouseleave', hideRules);
+    btnRules.addEventListener('touchstart', showRules, { passive: false });
+    btnRules.addEventListener('touchend', hideRules); btnRules.addEventListener('touchcancel', hideRules);
 }
 
 // 🚀 啟動單機版遊戲
