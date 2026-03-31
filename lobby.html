@@ -3,166 +3,46 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>橋牌大廳 - 準備！！</title>
+    <title>橋牌大廳 - 準備開局</title>
     
     <link rel="stylesheet" href="css/main.css">
-    
-    <style>
-        /* --- 高級名片風 UI 設計 --- */
-        
-        :root {
-            --premium-gold: #d4af37;    /* 柔和的香檳金 */
-            --premium-dark: #2c3e50;    /* 午夜藍灰 */
-            --premium-bg: #1a252f;      /* 深沉的背景底色 */
-            --text-soft: #ecf0f1;       /* 柔和的白 */
-            --text-muted: #95a5a6;      /* 次要文字灰 */
-        }
-
-        .lobby-card { 
-            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            background: linear-gradient(145deg, var(--premium-dark) 0%, var(--premium-bg) 100%); 
-            border-radius: 20px; 
-            border: 1px solid rgba(255,255,255,0.08); 
-            width: 750px; max-width: 95vw; 
-            display: flex; 
-            box-shadow: 0 30px 60px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.1); 
-            color: var(--text-soft); text-align: left;
-            overflow: hidden;
-            font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
-        }
-        
-        /* 左半部：名字與準備按鈕 (微透黑底增加層次) */
-        .left-panel { 
-            flex: 1; padding: 40px; 
-            background: rgba(0,0,0,0.15); 
-            border-right: 1px solid rgba(255,255,255,0.05); 
-            display: flex; flex-direction: column; justify-content: center;
-        }
-        .left-panel h2 { 
-            color: var(--premium-gold); margin-top: 0; 
-            letter-spacing: 4px; text-align: center; 
-            font-weight: 300; font-size: 1.6rem;
-        }
-        
-        .input-group { margin: 30px 0; }
-        input { 
-            padding: 15px; border-radius: 8px; 
-            border: 1px solid rgba(212, 175, 55, 0.3); 
-            width: 100%; box-sizing: border-box; 
-            background: rgba(0,0,0,0.2); color: white; 
-            text-align: center; font-size: 1.1rem; 
-            transition: all 0.3s ease; letter-spacing: 1px;
-        }
-        input:focus { outline: none; border-color: var(--premium-gold); box-shadow: 0 0 15px rgba(212, 175, 55, 0.15); }
-        
-        .btn-confirm { 
-            background: linear-gradient(135deg, #d4af37, #b5952f); 
-            color: #111; padding: 15px 0; border: none; border-radius: 30px; 
-            cursor: pointer; font-weight: bold; width: 100%; font-size: 1.1rem; 
-            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); margin-top: auto; 
-            letter-spacing: 2px; box-shadow: 0 8px 20px rgba(212, 175, 55, 0.25);
-        }
-        .btn-confirm:hover:not(:disabled) { transform: translateY(-3px); box-shadow: 0 12px 25px rgba(212, 175, 55, 0.4); }
-        .btn-confirm:disabled { background: #34495e; color: #7f8c8d; cursor: not-allowed; box-shadow: none; }
-        
-        .msg { font-size: 0.9rem; text-align: center; color: var(--text-muted); margin-bottom: 20px; letter-spacing: 1px;}
-
-        /* 右半部：座位區 */
-        .right-panel { 
-            flex: 1.2; padding: 40px; 
-            display: flex; flex-direction: column; justify-content: center;
-        }
-        .teams-container { display: flex; flex-direction: column; gap: 25px; }
-        
-        .team-box { 
-            background: rgba(255,255,255,0.02); 
-            border: 1px solid rgba(255,255,255,0.05); 
-            border-radius: 12px; padding: 20px; 
-            transition: background 0.3s;
-        }
-        .team-box:hover { background: rgba(255,255,255,0.04); }
-        .team-box h3 { 
-            margin: 0 0 15px 0; font-size: 0.9rem; color: var(--text-muted); 
-            text-align: center; font-weight: 400; letter-spacing: 2px;
-        }
-        
-        .seat-row { display: flex; gap: 15px; }
-        
-        /* 座位按鈕改為高級線條框設計 */
-        .seat-btn { 
-            flex: 1; padding: 15px 10px; margin: 0; 
-            background: transparent; border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; 
-            color: var(--text-muted); cursor: pointer; transition: all 0.3s ease; 
-            font-size: 0.95rem; text-align: center; letter-spacing: 1px;
-        }
-        .seat-btn:hover:not(:disabled) { 
-            background: rgba(212, 175, 55, 0.08); 
-            border-color: var(--premium-gold); color: var(--premium-gold); 
-            transform: translateY(-2px); 
-        }
-        .seat-btn.occupied { background: rgba(255,255,255,0.05); cursor: not-allowed; border-color: transparent; color: #555; }
-        .seat-btn.my-seat { 
-            background: var(--premium-gold); color: #111; font-weight: bold; 
-            border-color: var(--premium-gold); box-shadow: 0 5px 15px rgba(212, 175, 55, 0.3); 
-        }
-        .seat-btn.ready { 
-            background: #208b4a !important; color: white !important; 
-            border-color: #208b4a !important; box-shadow: 0 5px 15px rgba(32, 139, 74, 0.3) !important;
-        }
-
-        /* 📱 手機橫屏優化 (RWD) */
-        @media screen and (max-height: 500px), screen and (max-width: 800px) {
-            .lobby-card { 
-                width: 90vw; height: 85vh; /* 縮小整體尺寸，確保放進手機橫屏 */
-                border-radius: 12px;
-            }
-            .left-panel { padding: 15px 20px; }
-            .right-panel { padding: 15px 20px; }
-            
-            .left-panel h2 { font-size: 1.2rem; letter-spacing: 2px; }
-            .input-group { margin: 10px 0; }
-            input { padding: 10px; font-size: 0.95rem; }
-            .msg { margin-bottom: 10px; font-size: 0.8rem; }
-            .btn-confirm { padding: 10px 0; font-size: 1rem; }
-            
-            .teams-container { gap: 10px; }
-            .team-box { padding: 10px; border-radius: 8px; }
-            .team-box h3 { margin: 0 0 8px 0; font-size: 0.8rem; }
-            
-            .seat-row { gap: 10px; }
-            .seat-btn { padding: 8px 5px; font-size: 0.85rem; border-radius: 6px; }
-        }
-    </style>
+    <link rel="stylesheet" href="css/lobby.css">
 </head>
 <body>
     <div class="lobby-card">
         
-        <div class="left-panel">
-            <h2>準備ing</h2>
-            <div class="input-group">
-                <input type="text" id="name-input" placeholder="請輸入您的尊姓大名">
-            </div>
-            <p class="msg" id="status-text">已準備: 0/4</p>
-            <button id="ready-btn" class="btn-confirm" onclick="toggleReady()" disabled>請先入座</button>
+        <div id="card-stream-container"></div>
+        
+        <div class="header-section">
+            <h2>大廳準備</h2>
+            <input type="text" id="name-input" placeholder="請輸入您的尊姓大名" autocomplete="off">
+            <p class="msg" id="status-text">已準備: 0 / 4</p>
         </div>
 
-        <div class="right-panel">
-            <div class="teams-container">
-                <div class="team-box">
-                    <h3>隊伍 A (南北家)</h3>
-                    <div class="seat-row">
-                        <button class="seat-btn" id="seat-north" onclick="claimSeat('north')">北: 虛位以待</button>
-                        <button class="seat-btn" id="seat-south" onclick="claimSeat('south')">南: 虛位以待</button>
-                    </div>
-                </div>
-                <div class="team-box">
-                    <h3>隊伍 B (東西家)</h3>
-                    <div class="seat-row">
-                        <button class="seat-btn" id="seat-west" onclick="claimSeat('west')">西: 虛位以待</button>
-                        <button class="seat-btn" id="seat-east" onclick="claimSeat('east')">東: 虛位以待</button>
-                    </div>
-                </div>
+        <div class="table-section">
+            <div class="seat-wrapper pos-north">
+                <button class="circle-seat" id="seat-north" onclick="claimSeat('north')"></button>
+                <button class="add-ai-btn" id="add-ai-north" onclick="addComputer('north')">+ 電腦</button>
             </div>
+            
+            <div class="seat-wrapper pos-west">
+                <button class="circle-seat" id="seat-west" onclick="claimSeat('west')"></button>
+                <button class="add-ai-btn" id="add-ai-west" onclick="addComputer('west')">+ 電腦</button>
+            </div>
+
+            <div class="seat-wrapper pos-east">
+                <button class="circle-seat" id="seat-east" onclick="claimSeat('east')"></button>
+                <button class="add-ai-btn" id="add-ai-east" onclick="addComputer('east')">+ 電腦</button>
+            </div>
+
+            <div class="seat-wrapper pos-south">
+                <button class="circle-seat" id="seat-south" onclick="claimSeat('south')"></button>
+                <button class="add-ai-btn" id="add-ai-south" onclick="addComputer('south')">+ 電腦</button>
+            </div>
+        </div>
+
+        <div class="footer-section">
+            <button id="ready-btn" class="btn-confirm" onclick="toggleReady()" disabled>請先入座</button>
         </div>
 
     </div>
