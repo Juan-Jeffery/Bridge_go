@@ -1,8 +1,8 @@
 // 檔案路徑：js/lobby-logic.js
 
 const roomId = "Room_Alpha"; 
-const playersRef = database.ref('players/' + roomId);
-const gamesRef = database.ref('games/' + roomId);
+const playersRef = database.ref(`players/${roomId}`);
+const gamesRef = database.ref(`games/${roomId}`);
 
 let myRole = ""; 
 let isReady = false;
@@ -13,6 +13,7 @@ nameInput.value = myConfirmedName;
 let currentPlayersData = {};
 let currentGameData = {};
 
+// 監聽名字輸入並即時更新
 nameInput.addEventListener('input', (e) => {
     let newName = e.target.value.trim();
     if (myRole && !isReady) {
@@ -22,21 +23,24 @@ nameInput.addEventListener('input', (e) => {
     }
 });
 
+// 🌟 效能優化：精準監聽特定房間的玩家與遊戲狀態，不監聽整個資料庫
 function listenLobby() {
-    database.ref().on('value', (snap) => {
-        const all = snap.val() || {};
-        currentPlayersData = all.players ? all.players[roomId] : {};
-        currentGameData = all.games ? all.games[roomId] : {};
+    playersRef.on('value', (snap) => {
+        currentPlayersData = snap.val() || {};
+        updateLobbyUI();
+    });
+    
+    gamesRef.on('value', (snap) => {
+        currentGameData = snap.val() || {};
         updateLobbyUI();
     });
 }
 
-// 🌟 核心修改：讓文字在圓圈內分層排版
 function updateLobbyUI() {
-    const players = currentPlayersData || {};
-    const game = currentGameData || {};
-    
+    const players = currentPlayersData;
+    const game = currentGameData;
     const roles = ['north', 'south', 'west', 'east'];
+    
     let readyCount = 0;
     let occupiedCount = 0; 
 
@@ -45,14 +49,13 @@ function updateLobbyUI() {
         const btn = document.getElementById(`seat-${role}`);
         const addAiBtn = document.getElementById(`add-ai-${role}`);
         
+        // 重置按鈕狀態
         btn.className = "circle-seat";
         btn.disabled = false;
         btn.onclick = () => claimSeat(role); 
         if (addAiBtn) addAiBtn.classList.remove("hide-ai-btn");
 
-        // 建立 HTML 結構放入圓圈
-        let roleHtml = `<div class="role-title">${getRoleName(role)}</div>`;
-        let nameHtml = `<div class="player-name">虛位以待</div>`;
+        let nameHtml = ``; 
         let statusHtml = ``;
 
         if (p) {
@@ -63,38 +66,39 @@ function updateLobbyUI() {
             nameHtml = `<div class="player-name">${p.name}</div>`;
 
             if (p.isAI) {
-                statusHtml = `<div class="status-txt">點擊移除</div>`;
                 btn.classList.add("occupied", "ready");
                 btn.onclick = () => removeComputer(role); 
             } else if (role === myRole) {
-                statusHtml = `<div class="status-txt">${p.ready ? '已準備' : '點擊離開'}</div>`;
                 btn.classList.add("my-seat");
                 if (p.ready) {
+                    statusHtml = `<div class="status-txt">已準備</div>`;
                     btn.classList.add("ready");
                     btn.disabled = true; 
                 }
             } else {
-                statusHtml = `<div class="status-txt">${p.ready ? '已準備' : '入座中'}</div>`;
                 btn.classList.add("occupied");
-                if (p.ready) btn.classList.add("ready");
+                if (p.ready) {
+                    statusHtml = `<div class="status-txt">已準備</div>`;
+                    btn.classList.add("ready");
+                }
                 btn.disabled = true; 
                 btn.onclick = null;
             }
         }
 
-        // 將排版好的字塞入圓圈
-        btn.innerHTML = roleHtml + nameHtml + statusHtml;
+        btn.innerHTML = nameHtml + statusHtml;
     });
 
+    // 更新狀態文字與啟動遊戲邏輯
     const statusTextEl = document.getElementById('status-text');
     statusTextEl.innerText = `目前已準備人數: ${readyCount} / 4`;
 
     if (readyCount === 4 && occupiedCount === 4) {
-        if (game.gameStarted !== true && isReady) {
+        if (!game.gameStarted && isReady) {
             gamesRef.update({ gameStarted: true });
         }
         
-        if (game.gameStarted === true && isReady) {
+        if (game.gameStarted && isReady) {
             playersRef.child(myRole).onDisconnect().cancel();
             statusTextEl.innerText = "全部就緒，即將發牌...";
             statusTextEl.style.color = "var(--premium-gold)";
@@ -115,44 +119,51 @@ function claimSeat(targetRole) {
     myConfirmedName = name;
     localStorage.setItem('bridge_name', name);
 
+    // 如果點擊自己已經坐著的位置 (離開座位)
     if (myRole === targetRole) {
         playersRef.transaction((players) => {
-            if (players && players[myRole] && players[myRole].name === myConfirmedName) players[myRole] = null; 
+            if (players?.[myRole]?.name === myConfirmedName) players[myRole] = null; 
             if (!players || Object.keys(players).length === 0) gamesRef.set({ gameStarted: false });
             return players;
         }, (err, committed) => {
             if (committed) {
                 if (myRole) playersRef.child(myRole).onDisconnect().cancel(); 
-                myRole = ""; updateLobbyUI(); 
+                myRole = ""; 
+                updateLobbyUI(); 
             }
         });
         return; 
     }
 
+    // 搶空位
     playersRef.transaction((players) => {
-        if (!players) players = {};
-        if (players[targetRole]) return; 
-        if (myRole && players[myRole] && players[myRole].name === myConfirmedName) players[myRole] = null; 
+        players = players || {};
+        if (players[targetRole]) return; // 被別人搶走了
+        if (myRole && players[myRole]?.name === myConfirmedName) players[myRole] = null; // 離開舊位子
+        
         players[targetRole] = { name: myConfirmedName, ready: false, isAI: false };
         if (Object.keys(players).length === 1) gamesRef.set({ gameStarted: false });
         return players;
     }, (err, committed) => {
         if (committed) {
             if (myRole) playersRef.child(myRole).onDisconnect().cancel(); 
-            myRole = targetRole; playersRef.child(myRole).onDisconnect().remove(); 
+            myRole = targetRole; 
+            playersRef.child(myRole).onDisconnect().remove(); 
             updateLobbyUI();
-        } else { alert("太慢囉！這個位置被搶走了。"); }
+        } else { 
+            alert("太慢囉！這個位置被搶走了。"); 
+        }
     });
 }
 
 function addComputer(role) {
-    playersRef.child(role).set({ name: "電腦 (AI)", ready: true, isAI: true });
+    playersRef.child(role).set({ name: "電腦", ready: true, isAI: true });
 }
 
 function removeComputer(role) {
-    if(confirm(`確定要移除這家的電腦嗎？`)){
-        playersRef.child(role).remove();
-        if (currentPlayersData && Object.keys(currentPlayersData).length <= 1) gamesRef.update({ gameStarted: false });
+    playersRef.child(role).remove();
+    if (currentPlayersData && Object.keys(currentPlayersData).length <= 1) {
+        gamesRef.update({ gameStarted: false });
     }
 }
 
@@ -160,6 +171,7 @@ function toggleReady() {
     if (!myRole) return; 
     const currentName = nameInput.value.trim();
     if (!currentName) { alert("準備前請確保您的名字不是空白！"); nameInput.focus(); return; }
+    
     isReady = !isReady;
     playersRef.child(myRole).update({ ready: isReady, name: currentName });
 }
@@ -167,23 +179,58 @@ function toggleReady() {
 function updateReadyButton() {
     const btn = document.getElementById('ready-btn');
     if (!myRole) {
-        btn.innerText = "請先選擇桌面座位";
+        btn.innerText = "請先選擇桌面隊伍";
         btn.disabled = true;
-        btn.style.background = "rgba(255,255,255,0.1)";
-        btn.style.color = "#888";
+        Object.assign(btn.style, { background: "rgba(255,255,255,0.1)", color: "#888" });
         nameInput.disabled = false; 
     } else {
         btn.disabled = false;
         btn.innerText = isReady ? "取消準備" : "確認準備";
-        btn.style.background = isReady ? "var(--team-red)" : "linear-gradient(135deg, #f2d780, var(--premium-gold))";
-        btn.style.color = isReady ? "white" : "#222";
+        Object.assign(btn.style, {
+            background: isReady ? "var(--team-red)" : "linear-gradient(135deg, #f2d780, var(--premium-gold))",
+            color: isReady ? "white" : "#222"
+        });
         nameInput.disabled = isReady; 
     }
 }
 
-function getRoleName(role) {
-    const map = { north: "北", south: "南", west: "西", east: "東" };
-    return map[role];
+// ==========================================
+// 🌟 產生大廳背景的撲克牌流動特效
+// ==========================================
+function startCardStreamEffect() {
+    const container = document.getElementById('card-stream-container');
+    if (!container) return; 
+
+    const suits = ['♠', '♥', '♦', '♣'];
+    const values = ['A', 'K', 'Q', 'J', '10', '9', '8'];
+
+    for (let i = 0; i < 6; i++) {
+        let stream = document.createElement('div');
+        stream.className = 'floating-card-stream';
+
+        let cardString = "";
+        for (let j = 0; j < 15; j++) {
+            let s = suits[Math.floor(Math.random() * suits.length)];
+            let v = values[Math.floor(Math.random() * values.length)];
+            cardString += `${v}${s}  `;
+        }
+        
+        stream.innerText = cardString;
+        stream.style.top = `${Math.random() * 80}%`;
+        stream.style.left = `${Math.random() * -50}%`; 
+        
+        let duration = 15 + Math.random() * 10;
+        let delay = Math.random() * -20; 
+        
+        stream.style.animation = `flow-diagonal ${duration}s linear infinite`;
+        stream.style.animationDelay = `${delay}s`;
+
+        if (Math.random() > 0.5) stream.style.color = "rgba(231, 76, 60, 0.4)"; 
+
+        container.appendChild(stream);
+    }
 }
 
+// 啟動特效與資料庫監聽
+startCardStreamEffect();
 listenLobby();

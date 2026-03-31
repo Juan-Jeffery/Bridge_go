@@ -24,7 +24,7 @@ body, html {
     color: var(--text-soft);
 }
 
-/* 🌟 改為直式卡片 (與首頁相同) */
+/* 🌟 大廳卡片主體 (已合併重複設定) */
 .lobby-card { 
     position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
     background: linear-gradient(145deg, rgba(58, 77, 99, 0.85) 0%, rgba(44, 52, 64, 0.95) 100%);
@@ -35,6 +35,13 @@ body, html {
     padding: 40px 30px; box-sizing: border-box;
     box-shadow: 0 20px 50px rgba(0,0,0,0.4); 
     backdrop-filter: blur(10px); text-align: center;
+    overflow: hidden; /* 關住撲克牌特效 */
+}
+
+/* 確保原本的 UI 不會被撲克牌蓋住 */
+.lobby-card > *:not(#card-stream-container) {
+    position: relative;
+    z-index: 1; 
 }
 
 /* 頂部區域 */
@@ -77,9 +84,8 @@ input:focus { outline: none; border-color: var(--premium-gold); background: rgba
 .circle-seat:disabled { cursor: not-allowed; opacity: 0.8; }
 
 /* 圓圈內的文字排版 */
-.circle-seat .role-title { font-size: 1.4rem; font-weight: bold; margin-bottom: 2px; }
-.circle-seat .player-name { font-size: 0.8rem; opacity: 0.9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 75px;}
-.circle-seat .status-txt { font-size: 0.7rem; color: #aaa; margin-top: 2px; }
+.circle-seat .player-name { font-size: 1rem; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 75px;}
+.circle-seat .status-txt { font-size: 0.8rem; color: #ccc; margin-top: 4px; }
 
 /* 🌟 四家專屬顏色 (空位時邊框有顏色，坐下/準備後填滿顏色) */
 #seat-north { border-color: rgba(224, 115, 116, 0.5); }
@@ -115,11 +121,50 @@ input:focus { outline: none; border-color: var(--premium-gold); background: rgba
 .btn-confirm:hover:not(:disabled) { transform: translateY(-3px); box-shadow: 0 12px 25px rgba(232, 197, 106, 0.4); }
 .btn-confirm:disabled { background: rgba(255,255,255,0.1); color: #888; cursor: not-allowed; box-shadow: none; }
 
-/* 手機版微調 */
+/* ==========================================
+   🌟 背景撲克牌流動特效
+========================================== */
+#card-stream-container {
+    position: absolute;
+    top: 0; left: 0; width: 100%; height: 100%;
+    z-index: 0; 
+    pointer-events: none; 
+    opacity: 0.4; 
+}
+
+.floating-card-stream {
+    position: absolute;
+    font-size: 1.8rem;
+    font-weight: bold;
+    color: rgba(255, 255, 255, 0.5); 
+    white-space: nowrap;
+}
+
+@keyframes flow-diagonal {
+    0% { transform: translate(-50%, -50%) rotate(25deg); opacity: 0; }
+    10% { opacity: 1; }
+    90% { opacity: 1; }
+    100% { transform: translate(150%, 150%) rotate(25deg); opacity: 0; }
+}
+
+/* ==========================================
+   📱 響應式微調 (統一集中於底部)
+========================================== */
+/* 螢幕太矮時 (橫式或小手機) */
 @media screen and (max-height: 700px) {
     .lobby-card { padding: 20px; }
     .circle-seat { width: 75px; height: 75px; }
-    .circle-seat .role-title { font-size: 1.2rem; }
-    .circle-seat .player-name { font-size: 0.75rem; max-width: 65px;}
+    .circle-seat .player-name { font-size: 0.9rem; max-width: 65px;}
     .table-section { gap: 10px; margin: 15px 0; }
+}
+
+/* 螢幕太窄時 (手機直式) */
+@media screen and (max-width: 900px) and (orientation: portrait) {
+    .lobby-card { width: 95vw; padding: 20px 10px; }
+    #name-input { width: 85%; font-size: 1.1rem; padding: 10px; }
+    #ready-btn { width: 85%; font-size: 1.1rem; padding: 12px; }
+    
+    .circle-seat { width: 90px; height: 90px; margin: 5px; }
+    .circle-seat .player-name { font-size: 1.1rem; }
+    .add-ai-btn { font-size: 0.8rem; padding: 4px 8px; }
 }

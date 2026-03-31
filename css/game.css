@@ -315,12 +315,43 @@ body, html {
 .mini-card.border-west { border-color: var(--team-yellow) !important; }
 .mini-card.border-east { border-color: var(--team-green) !important; }
 
-/* 再來一場按鈕 */
+.victory-buttons {
+    display: flex;
+    gap: 10px; /* 兩個按鈕中間的縫隙 */
+    width: 100%;
+    margin-top: 15px;
+}
+
+/* 主按鈕：再來一場 (佔 2/3) */
 .btn-again { 
-    width: 100%; background: var(--premium-gold); color: #222; border: none; padding: 12px; 
-    font-size: 1.2rem; border-radius: 10px; font-weight: bold; cursor: pointer; transition: 0.2s;
+    flex: 2; /* 比例佔 2 */
+    background: var(--premium-gold); 
+    color: #222; 
+    border: none; 
+    padding: 12px; 
+    font-size: 1.2rem; 
+    border-radius: 8px; /* 稍微方正一點的方框 */
+    font-weight: bold; 
+    cursor: pointer; 
+    transition: 0.2s;
 }
 .btn-again:active { transform: scale(0.95); }
+.btn-again:disabled { opacity: 0.6; cursor: not-allowed; }
+
+/* 副按鈕：重新分隊 (佔 1/3) */
+.btn-lobby {
+    flex: 1; /* 比例佔 1 */
+    background: rgba(255, 255, 255, 0.1); /* 低調的半透明底色 */
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.3); /* 加個邊框提升方框質感 */
+    padding: 12px;
+    font-size: 1rem; /* 字體稍微小一點點，區分主次 */
+    border-radius: 8px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: 0.2s;
+}
+.btn-lobby:active { transform: scale(0.95); background: rgba(255, 255, 255, 0.2); }
 
 /* ==========================================
    🌟 吃牌堆與燒線機制 (記牌器)

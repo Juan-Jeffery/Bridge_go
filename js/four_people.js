@@ -605,7 +605,21 @@ function checkTrickWinner(cardsArray, leadSuit, trumpSuit) {
             gameRef.child(`scores/${team}`).transaction(s => (s || 0) + 1, () => {
                 gameRef.child(`personalScores/${winner.from}`).transaction(s => (s || 0) + 1);
                 gameRef.child('review').push({ winner: winner.from, cards: cardsArray });
-                gameRef.child('table').remove().then(() => gameRef.child('turn').set(winner.from));
+                
+                gameRef.child('table').remove().then(() => {
+                    // 🌟 終極拔插頭：判斷是否已經贏了？如果贏了，把 turn 鎖死成 game_over！
+                    const currentNS = currentScoresGlobally.ns + (team === 'ns' ? 1 : 0);
+                    const currentEW = currentScoresGlobally.ew + (team === 'ew' ? 1 : 0);
+                    const c = currentBiddingState.contract;
+                    const nsT = c.team === 'NS' ? c.targetTricks : 14 - c.targetTricks;
+                    const ewT = c.team === 'EW' ? c.targetTricks : 14 - c.targetTricks;
+
+                    if (currentNS >= nsT || currentEW >= ewT || (currentNS + currentEW === 13)) {
+                        gameRef.child('turn').set("game_over"); // 鎖死輪次，AI 瞬間停擺
+                    } else {
+                        gameRef.child('turn').set(winner.from); // 還沒結束，交給贏家繼續出
+                    }
+                });
             });
         }
     });
