@@ -417,4 +417,18 @@ body, html {
     #victory-title { font-size: 2.2rem; }
     .rules-modal { width: 85vw; right: 5vw; top: 55px; }
     .nav-left { transform: scale(0.85); transform-origin: left center; }
+
+    /* 1. 縮小歷史軌跡的彩色方塊 */
+    #bidding-history span {
+        font-size: 1rem !important;     /* 原本是 1.3rem */
+        padding: 2px 8px !important;    /* 稍微縮減上下左右的內邊距 */
+    }
+
+    /* 2. 縮小歷史軌跡中間的「➔」箭頭符號 */
+    #bidding-history span[style*="#95a5a6"] {
+        font-size: 0.9rem !important;
+        margin: 0 2px !important;
+        padding: 0 !important;          /* 避免箭頭被撐開 */
+        background: transparent !important; 
+    }
 }
