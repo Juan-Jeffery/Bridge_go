@@ -308,17 +308,27 @@ function triggerAiBiddingIfNeeded() {
         }, 1500);
     }
 }
-
 // --- 5. UI 更新與回合控制 ---
 function updatePlayerLabels() {
+    const roleMap = { south: '南', north: '北', west: '西', east: '東' };
+
     POSITIONS.forEach((pos, i) => {
         const r = getRoleByPosOffset(i);
-        const name = currentPlayersData[r]?.name || "連線中...";
+        const player = currentPlayersData[r];
+        const name = player?.name || "連線中...";
         const labelEl = document.getElementById(`label-${pos}`);
         const pileEl = document.getElementById(`pile-${pos}`);
         
         if (labelEl) {
-            labelEl.innerText = `${ROLE_NAMES[r]}: ${name}${i === 0 ? " (你)" : ""}`;
+            let displayName = "";
+
+            if (player?.isAI || name === "電腦") {
+                displayName = `電腦 (${roleMap[r]})`;
+            } else {
+                displayName = name; 
+            }
+
+            labelEl.innerText = displayName;
             labelEl.style.backgroundColor = TEAM_COLORS[r];
             labelEl.style.color = TEXT_COLORS[r];
         }
@@ -602,23 +612,33 @@ function checkTrickWinner(cardsArray, leadSuit, trumpSuit) {
     playTrickAnimation(winner.from, () => {
         if (myRole === getAiDriver()) {
             const team = ['south', 'north'].includes(winner.from) ? 'ns' : 'ew';
+            
+            // 執行分數增加
             gameRef.child(`scores/${team}`).transaction(s => (s || 0) + 1, () => {
                 gameRef.child(`personalScores/${winner.from}`).transaction(s => (s || 0) + 1);
                 gameRef.child('review').push({ winner: winner.from, cards: cardsArray });
                 
                 gameRef.child('table').remove().then(() => {
-                    // 🌟 終極拔插頭：判斷是否已經贏了？如果贏了，把 turn 鎖死成 game_over！
-                    const currentNS = currentScoresGlobally.ns + (team === 'ns' ? 1 : 0);
-                    const currentEW = currentScoresGlobally.ew + (team === 'ew' ? 1 : 0);
-                    const c = currentBiddingState.contract;
-                    const nsT = c.team === 'NS' ? c.targetTricks : 14 - c.targetTricks;
-                    const ewT = c.team === 'EW' ? c.targetTricks : 14 - c.targetTricks;
+                    
+                    // 🌟 核心修正：避免分數非同步造成的「提早一墩判定」殭屍問題
+                    // 直接從資料庫抓取「剛剛更新完」的最新分數，保證絕對精準，不再手動 +1！
+                    gameRef.child('scores').once('value', snap => {
+                        const latestScores = snap.val() || { ns: 0, ew: 0 };
+                        const currentNS = latestScores.ns || 0;
+                        const currentEW = latestScores.ew || 0;
+                        
+                        const c = currentBiddingState.contract;
+                        const nsT = c.team === 'NS' ? c.targetTricks : 14 - c.targetTricks;
+                        const ewT = c.team === 'EW' ? c.targetTricks : 14 - c.targetTricks;
 
-                    if (currentNS >= nsT || currentEW >= ewT || (currentNS + currentEW === 13)) {
-                        gameRef.child('turn').set("game_over"); // 鎖死輪次，AI 瞬間停擺
-                    } else {
-                        gameRef.child('turn').set(winner.from); // 還沒結束，交給贏家繼續出
-                    }
+                        // 用最真實的分數判斷，如果真的達標了，才鎖死輪次
+                        if (currentNS >= nsT || currentEW >= ewT || (currentNS + currentEW === 13)) {
+                            gameRef.child('turn').set("game_over"); 
+                        } else {
+                            gameRef.child('turn').set(winner.from); // 沒達標，交給贏家出下一張
+                        }
+                    });
+                    
                 });
             });
         }
