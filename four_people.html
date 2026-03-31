@@ -9,72 +9,121 @@
 </head>
 <body>
 
-    <div id="loading" class="waiting-overlay"><h2>遊戲準備中... 洗牌發牌中...</h2></div>
+    <div id="loading" class="waiting-overlay">
+        <h2>遊戲準備中... 洗牌發牌中...</h2>
+    </div>
 
-    <div class="status-bar">
-        <div id="contract-display">目前喊牌: 喊牌中...</div>
-        <div id="score-display-teams">載入中...</div>
-        <div id="turn-display">輪到: <span id="turn-name-display">...</span></div>
+    <div class="top-nav-bar">
+        <div class="game-status nav-left">
+            <span id="contract-display">喊牌中...</span> 
+        </div>
+
+        <div class="teams-container nav-center">
+            <div class="team-info">
+                <div class="dot bg-blue" id="dot-south"></div>
+                <div class="dot bg-red" id="dot-north"></div>
+                <span class="team-text" id="score-ns-text"> 0/?</span>
+            </div>
+            <span class="nav-divider">|</span>
+            <div class="team-info">
+                <div class="dot bg-yellow" id="dot-west"></div>
+                <div class="dot bg-green" id="dot-east"></div>
+                <span class="team-text" id="score-ew-text"> 0/?</span>
+            </div>
+        </div>
+        
+        <div class="nav-right">
+            <button id="btn-rules" class="btn-rules">?</button>
+        </div>
+    </div>
+
+    <div id="rules-overlay" class="rules-modal">
+        <h3 style="margin-top:0; color:var(--premium-gold); text-align:center;">遊戲規則</h3>
+        <ul style="padding-left: 20px; line-height: 1.6; font-size: 0.95rem; margin-bottom:0;">
+            <li><b>喊牌階段</b>：依序出價，最高者成為莊家，決定王牌花色。</li>
+            <li><b>打牌階段</b>：必須跟隨第一家打出的花色。無該花色時才可出其他牌或王牌。</li>
+            <li><b>王牌最大</b>：若有人出王牌，則王牌點數最大者贏得該墩。</li>
+            <li><b>勝利方式</b>：達到指定墩數時，立即勝利。</li>
+        </ul>
     </div>
 
     <div id="bidding-modal">
-        <h3 id="bidding-title">喊牌階段</h3>
         <div id="bidding-history">等待喊牌...</div>
-        <div class="bid-grid" id="bid-buttons-container">
-            </div>
+        <div class="bid-grid" id="bid-buttons-container"></div>
         <button class="bid-btn pass-btn" id="btn-pass" onclick="submitBid('Pass')">Pass</button>
     </div>
 
     <div class="table-container">
+        
         <div class="player-slot pos-top">
             <div class="player-info" id="label-top">等待中...</div>
             <div class="trick-pile pile-top" id="pile-top">0</div>
-            <div style="font-size: 2rem;"></div>
         </div>
+        
         <div class="player-slot pos-left">
             <div class="player-info" id="label-left">等待中...</div>
             <div class="trick-pile pile-left" id="pile-left">0</div>
-            <div style="writing-mode: vertical-lr; font-size: 2rem;"></div>
         </div>
-        <div class="center-field" id="table-center"></div>
+        
+        <div class="center-field" id="table-center">
+            <div class="play-slot slot-north" id="slot-north"></div>
+            <div class="play-slot slot-west" id="slot-west"></div>
+            <div class="play-slot slot-east" id="slot-east"></div>
+            <div class="play-slot slot-south" id="slot-south"></div>
+        </div>
+        
         <div class="player-slot pos-right">
             <div class="player-info" id="label-right">等待中...</div>
             <div class="trick-pile pile-right" id="pile-right">0</div>
-            <div style="writing-mode: vertical-lr; font-size: 2rem;"></div>
         </div>
+        
         <div class="player-slot pos-bottom">
             <div class="player-info" id="label-bottom">- (你)</div>
             <div class="trick-pile pile-bottom" id="pile-bottom">0</div>
             <div class="hand-area" id="my-hand"></div>
         </div>
+        
     </div>
 
     <div id="victory-overlay">
         <div class="victory-card">
-            <h1 id="victory-title">👑 勝利 👑</h1>
-            <h2 id="victory-team-names">玩家A & 玩家B</h2>
-            <div id="victory-stats">
-                最終喊牌: <span id="v-contract" style="color:var(--premium-gold); font-weight:bold;">-</span>
-                <div style="margin: 15px 0; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px;">
-                    <div id="v-ns-line">載入中...</div>
-                    <div id="v-ew-line">載入中...</div>
+            <h1 id="victory-title">Victory</h1>
+            
+            <div class="v-teams-container">
+                <div class="v-team-info">
+                    <div class="dot bg-blue"></div>
+                    <div class="dot bg-red"></div>
+                    <span class="v-team-text" id="v-score-ns-text">0/?</span>
                 </div>
-                <span id="v-result" style="display:none;"></span>
+                <span class="v-nav-divider">|</span>
+                <div class="v-team-info">
+                    <div class="dot bg-yellow"></div>
+                    <div class="dot bg-green"></div>
+                    <span class="v-team-text" id="v-score-ew-text">0/?</span>
+                </div>
+            </div>
+
+            <div class="v-review-container">
+                <div class="v-review-scrollarea" id="review-scrollarea">    
+                </div>
             </div>
             
-            <div class="victory-buttons">
+            <div class="victory-buttons" style="display: flex; gap: 10px; margin-top: 15px;">
                 <button class="btn-action btn-again" id="btn-again" onclick="votePlayAgain()">再來一場</button>
-                <button class="btn-action btn-lobby" id="btn-lobby" onclick="voteReturnLobby()">重新分隊</button>
+                <button class="btn-action btn-lobby" id="btn-lobby" onclick="voteReturnLobby()" style="background: var(--premium-dark); color: white; border: 1px solid rgba(255,255,255,0.2);">重新分隊</button>
             </div>
             
             <div id="vote-status-display" style="margin-top: 15px; font-size: 0.95rem; color: var(--text-muted); line-height: 1.6;">
             </div>
         </div>
     </div>
+    
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
     
     <script src="js/firebase-config.js"></script>
-    <script src="js/game-logic.js"></script>
+    <script src="js/bridge_rule.js"></script>
+    <script src="js/computer.js"></script>
+    <script src="js/four_people.js"></script>
 </body>
 </html>

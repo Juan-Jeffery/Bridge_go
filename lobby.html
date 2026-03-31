@@ -3,9 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>橋牌大廳 - 準備！！</title>
+    <title>橋牌大廳 - 準備開局</title>
     
     <link rel="stylesheet" href="css/main.css">
+<<<<<<< Updated upstream
     
     <style>
         /* --- 高級名片風 UI 設計 --- */
@@ -133,10 +134,14 @@
             .seat-btn { padding: 8px 5px; font-size: 0.85rem; border-radius: 6px; }
         }
     </style>
+=======
+    <link rel="stylesheet" href="css/lobby.css">
+>>>>>>> Stashed changes
 </head>
 <body>
     <div class="lobby-card">
         
+<<<<<<< Updated upstream
         <div class="left-panel">
             <h2>準備ing</h2>
             <div class="input-group">
@@ -162,7 +167,38 @@
                         <button class="seat-btn" id="seat-east" onclick="claimSeat('east')">東: 虛位以待</button>
                     </div>
                 </div>
+=======
+        <div class="header-section">
+            <h2>大廳準備</h2>
+            <input type="text" id="name-input" placeholder="請輸入您的尊姓大名">
+            <p class="msg" id="status-text">已準備: 0 / 4</p>
+        </div>
+
+        <div class="table-section">
+            <div class="seat-wrapper pos-north">
+                <button class="circle-seat" id="seat-north" onclick="claimSeat('north')"></button>
+                <button class="add-ai-btn" id="add-ai-north" onclick="addComputer('north')">+ 電腦</button>
+>>>>>>> Stashed changes
             </div>
+            
+            <div class="seat-wrapper pos-west">
+                <button class="circle-seat" id="seat-west" onclick="claimSeat('west')"></button>
+                <button class="add-ai-btn" id="add-ai-west" onclick="addComputer('west')">+ 電腦</button>
+            </div>
+
+            <div class="seat-wrapper pos-east">
+                <button class="circle-seat" id="seat-east" onclick="claimSeat('east')"></button>
+                <button class="add-ai-btn" id="add-ai-east" onclick="addComputer('east')">+ 電腦</button>
+            </div>
+
+            <div class="seat-wrapper pos-south">
+                <button class="circle-seat" id="seat-south" onclick="claimSeat('south')"></button>
+                <button class="add-ai-btn" id="add-ai-south" onclick="addComputer('south')">+ 電腦</button>
+            </div>
+        </div>
+
+        <div class="footer-section">
+            <button id="ready-btn" class="btn-confirm" onclick="toggleReady()" disabled>請先入座</button>
         </div>
 
     </div>

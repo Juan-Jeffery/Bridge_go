@@ -1,0 +1,125 @@
+/* ==========================================
+   橋牌 - 多人連線大廳樣式 (lobby.css)
+   直式十字桌佈局 + 四色圓圈座位
+========================================== */
+:root {
+    --premium-gold: #e8c56a;    
+    --premium-dark: #2c3440;    
+    --premium-bg: #7EA59F;      
+    --text-soft: #f0f0f0;       
+    --text-muted: #a6b3c9;      
+    
+    /* 四家專屬顏色 */
+    --team-blue: #5F8AAF;       /* 南 */
+    --team-red: #E07374;        /* 北 */
+    --team-yellow: #E0A800;     /* 西 */
+    --team-green: #539357;      /* 東 */
+}
+
+body, html {
+    height: 100%; margin: 0;
+    background: radial-gradient(circle, #8bb5af 0%, #7EA59F 100%);
+    overflow: hidden;
+    font-family: "PingFang TC", "Microsoft JhengHei", sans-serif;
+    color: var(--text-soft);
+}
+
+/* 🌟 改為直式卡片 (與首頁相同) */
+.lobby-card { 
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    background: linear-gradient(145deg, rgba(58, 77, 99, 0.85) 0%, rgba(44, 52, 64, 0.95) 100%);
+    border-radius: 25px; 
+    border: 1px solid rgba(255,255,255,0.15); 
+    width: 420px; max-width: 95vw; 
+    display: flex; flex-direction: column; 
+    padding: 40px 30px; box-sizing: border-box;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.4); 
+    backdrop-filter: blur(10px); text-align: center;
+}
+
+/* 頂部區域 */
+.header-section h2 { 
+    color: var(--premium-gold); margin: 0 0 20px 0; 
+    letter-spacing: 6px; font-weight: 900; font-size: 2rem;
+}
+input { 
+    padding: 15px; border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.2); 
+    width: 100%; box-sizing: border-box; background: rgba(0,0,0,0.25); 
+    color: white; text-align: center; font-size: 1.2rem; transition: 0.3s; 
+}
+input:focus { outline: none; border-color: var(--premium-gold); background: rgba(0,0,0,0.4); }
+.msg { font-size: 1rem; color: var(--text-muted); margin: 15px 0 5px 0; font-weight: bold;}
+
+/* 🌟 十字型桌面佈局 (Grid) */
+.table-section {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-rows: auto auto auto;
+    gap: 15px; align-items: center; justify-items: center;
+    margin: 25px 0;
+}
+.seat-wrapper { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.pos-north { grid-column: 2; grid-row: 1; }
+.pos-west  { grid-column: 1; grid-row: 2; }
+.pos-east  { grid-column: 3; grid-row: 2; }
+.pos-south { grid-column: 2; grid-row: 3; }
+
+/* 🌟 圓形座位按鈕 */
+.circle-seat {
+    width: 90px; height: 90px; border-radius: 50%;
+    background: rgba(0,0,0,0.2); border: 2px solid rgba(255,255,255,0.2);
+    display: flex; flex-direction: column; justify-content: center; align-items: center;
+    color: var(--text-soft); cursor: pointer; transition: 0.3s cubic-bezier(0.25, 0.8, 0.25, 1.2);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.2); text-decoration: none; padding: 5px; box-sizing: border-box;
+}
+.circle-seat:hover:not(:disabled) { transform: scale(1.08); background: rgba(255,255,255,0.1); }
+.circle-seat:active:not(:disabled) { transform: scale(0.95); }
+.circle-seat:disabled { cursor: not-allowed; opacity: 0.8; }
+
+/* 圓圈內的文字排版 */
+.circle-seat .role-title { font-size: 1.4rem; font-weight: bold; margin-bottom: 2px; }
+.circle-seat .player-name { font-size: 0.8rem; opacity: 0.9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 75px;}
+.circle-seat .status-txt { font-size: 0.7rem; color: #aaa; margin-top: 2px; }
+
+/* 🌟 四家專屬顏色 (空位時邊框有顏色，坐下/準備後填滿顏色) */
+#seat-north { border-color: rgba(224, 115, 116, 0.5); }
+#seat-south { border-color: rgba(95, 138, 175, 0.5); }
+#seat-west  { border-color: rgba(224, 168, 0, 0.5); }
+#seat-east  { border-color: rgba(83, 147, 87, 0.5); }
+
+/* 入座狀態 (填滿顏色) */
+#seat-north.occupied, #seat-north.my-seat { background: var(--team-red); border-color: var(--team-red); color: white; }
+#seat-south.occupied, #seat-south.my-seat { background: var(--team-blue); border-color: var(--team-blue); color: white; }
+#seat-west.occupied,  #seat-west.my-seat  { background: var(--team-yellow); border-color: var(--team-yellow); color: #222; } /* 黃色配深色字 */
+#seat-east.occupied,  #seat-east.my-seat  { background: var(--team-green); border-color: var(--team-green); color: white; }
+
+/* 準備狀態 (加上發光特效) */
+.circle-seat.ready { box-shadow: 0 0 20px rgba(255,255,255,0.4); border: 2px solid white !important; }
+
+/* 加電腦小按鈕 */
+.add-ai-btn {
+    background: transparent; border: 1px dashed rgba(255,255,255,0.3);
+    color: var(--text-muted); border-radius: 10px; padding: 4px 10px;
+    font-size: 0.75rem; cursor: pointer; transition: 0.2s;
+}
+.add-ai-btn:hover { background: rgba(255,255,255,0.15); color: white; border-color: white; }
+.hide-ai-btn { display: none !important; }
+
+/* 底部確認按鈕 */
+.btn-confirm { 
+    background: linear-gradient(135deg, #f2d780, var(--premium-gold)); 
+    color: #222; padding: 16px 0; border: none; border-radius: 12px; 
+    cursor: pointer; font-weight: bold; width: 100%; font-size: 1.2rem; 
+    transition: 0.3s; letter-spacing: 2px; box-shadow: 0 8px 20px rgba(232, 197, 106, 0.25);
+}
+.btn-confirm:hover:not(:disabled) { transform: translateY(-3px); box-shadow: 0 12px 25px rgba(232, 197, 106, 0.4); }
+.btn-confirm:disabled { background: rgba(255,255,255,0.1); color: #888; cursor: not-allowed; box-shadow: none; }
+
+/* 手機版微調 */
+@media screen and (max-height: 700px) {
+    .lobby-card { padding: 20px; }
+    .circle-seat { width: 75px; height: 75px; }
+    .circle-seat .role-title { font-size: 1.2rem; }
+    .circle-seat .player-name { font-size: 0.75rem; max-width: 65px;}
+    .table-section { gap: 10px; margin: 15px 0; }
+}

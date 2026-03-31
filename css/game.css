@@ -197,8 +197,13 @@ body, html {
 
 /* 狀態卡片 */
 .card.selected { transform: translateY(-45px) scale(1.15) !important; z-index: 1000 !important; border: 2px solid var(--premium-gold); box-shadow: 0 15px 30px rgba(0,0,0,0.4); }
-.card.disabled { opacity: 0.6; background-color: #d0d0d0; pointer-events: none; filter: grayscale(100%); transform: translateY(15px); box-shadow: none; }
-
+.card.disabled { 
+    opacity: 0.45; /* 讓整張牌變半透明 */
+    filter: brightness(0.85); /* 稍微調暗，但絕不使用灰階，確保紅色鮮豔 */
+    pointer-events: none; /* 禁用點擊 */
+    transform: translateY(15px); /* 保持下沉效果 */
+    box-shadow: none; 
+}
 /* 出牌與收牌動畫 */
 .table-card { 
     position: absolute !important; top: 0; left: 0; margin: 0 !important;
