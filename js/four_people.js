@@ -184,8 +184,10 @@ function startListening() {
 
     gameRef.child(`hands/${myRole}`).on('value', snap => { 
         let serverHand = snap.val();
-        if (serverHand && (serverHand.length <= myCurrentHand.length || myCurrentHand.length === 0)) {
-            myCurrentHand = serverHand; renderHand(myCurrentHand); 
+        // 🌟 核心修正：加上 serverHand.length === 13，讓新局剛發的 13 張牌可以直接通過！
+        if (serverHand && (serverHand.length === 13 || serverHand.length <= myCurrentHand.length || myCurrentHand.length === 0)) {
+            myCurrentHand = serverHand; 
+            renderHand(myCurrentHand); 
         }
     });
 
